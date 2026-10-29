@@ -1,0 +1,2331 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e7a66">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="P-shift胶水称重">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="format-detection" content="telephone=no">
+<title>P-shift胶水称重</title>
+<style>
+  :root{
+    --brand:#0e7a66; --brand-soft:#e7f6f1;
+    --ink:#16181c; --ink-2:#6b7378; --ink-3:#9aa2a7;
+    --line:#e6eaec; --bg:#eef1f4; --card:#fff;
+    --danger:#c62828; --danger-soft:#fdeaea; --warn:#b26a00;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    font-size:16px; line-height:1.45;
+    padding:max(8px,env(safe-area-inset-top)) 10px calc(28px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px}
+  .topbar h1{font-size:19px;margin:0;letter-spacing:.5px}
+  .topbar .meta{font-size:12px;color:var(--ink-2);text-align:right;line-height:1.3}
+  .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 1px 2px rgba(16,24,32,.06),0 1px 10px rgba(16,24,32,.03)}
+  .warnbar{
+    display:none;background:var(--danger-soft);color:#a3251c;border:1px solid #f3c9c5;
+    border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.55;margin-bottom:10px;font-weight:600;
+  }
+  .warnbar.on{display:block}
+
+  /* ---------- 机种 / 阶段 ---------- */
+  .picker{padding:12px 14px}
+  .pickrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .plab{font-size:12px;color:var(--ink-2);width:30px;flex:none}
+  .seg{flex:1;display:flex;gap:5px;background:#f1f4f5;padding:4px;border-radius:11px}
+  .seg button{
+    flex:1;border:0;background:transparent;padding:9px 4px;border-radius:8px;
+    font-size:13.5px;font-weight:700;color:#6b7378;font-family:inherit;cursor:pointer;
+  }
+  .seg button.on{background:#fff;color:var(--brand);box-shadow:0 1px 3px rgba(16,24,32,.12)}
+  .specline{font-size:12.5px;color:var(--ink-2);background:#f4f8f7;border-radius:9px;padding:8px 10px;margin-top:2px;overflow:hidden}
+  .specline b{color:var(--ink);font-size:14px;margin:0 2px}
+
+  /* ---------- 结果区 ---------- */
+  .result{position:relative;overflow:hidden;padding:16px 16px 12px}
+  .result:before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;background:var(--brand)}
+  .result.fail:before{background:var(--danger)}
+  .rhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .rlabel{font-size:13px;color:var(--ink-2);letter-spacing:1px}
+  .rnum{display:flex;align-items:flex-end;gap:8px;min-height:62px}
+  .rnum .v{font-size:clamp(40px,12.6vw,54px);font-weight:800;line-height:1.05;letter-spacing:-1px;color:var(--brand);font-variant-numeric:tabular-nums}
+  .result.fail .rnum .v{color:var(--danger)}
+  .rnum .u{font-size:20px;font-weight:700;color:var(--ink-2);padding-bottom:8px}
+  .rnum .calc{flex:1 1 auto;min-width:0;font-size:12px;color:var(--ink-3);padding-bottom:11px;margin-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{display:inline-block;flex:none;padding:5px 13px;border-radius:999px;font-size:14px;font-weight:800;letter-spacing:1px;background:#f0f2f4;color:var(--ink-2)}
+  .badge.pass{background:var(--brand-soft);color:var(--brand)}
+  .badge.fail{background:var(--danger-soft);color:var(--danger)}
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+  .hint.warn{color:var(--warn)}
+
+  /* ---------- 步骤 ---------- */
+  .head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .idx{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;flex:none}
+  .head .t{font-size:15px;font-weight:700}
+  .head .sub{font-size:12px;color:var(--ink-3);margin-left:auto}
+  .head .sub.link{font-family:inherit;color:var(--brand);font-weight:800;background:none;border:0;font-size:12.5px;padding:5px 0 5px 8px;cursor:pointer}
+  .head .sub.link[disabled]{color:#bcc4c7;font-weight:600}
+  .field{display:flex;align-items:center;gap:8px;position:relative}
+  .w{
+    flex:1;min-width:0;width:100%;font-size:32px;font-weight:800;color:var(--ink);
+    border:2px solid var(--line);border-radius:12px;padding:10px 52px 10px 14px;
+    text-align:right;background:#fbfcfc;font-variant-numeric:tabular-nums;
+    transition:border-color .15s,background .15s;font-family:inherit;
+  }
+  .w:focus{outline:none;border-color:var(--brand);background:#fff}
+  .w.err{border-color:var(--danger);background:#fffafa}
+  .w::placeholder{font-weight:600;color:#c3cacd;font-size:22px}
+  .unit{position:absolute;right:14px;bottom:0;height:100%;display:flex;align-items:center;font-size:17px;font-weight:700;color:var(--ink-3);pointer-events:none}
+
+  /* ---------- 拍照位 ---------- */
+  .shot{
+    position:relative;margin-top:9px;height:116px;border:1.5px dashed #cfd8db;border-radius:12px;
+    background:#f8fafb;display:flex;align-items:center;justify-content:center;
+    color:#7b858a;font-size:13.5px;font-weight:600;overflow:hidden;cursor:pointer;
+  }
+  .shot.on{border-style:solid;border-color:#e2e8ea;background:#eef2f3}
+  .shot .ph{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;padding:0 12px}
+  .shot .ph b{font-size:20px;line-height:1}
+  .shot .ph i{font-style:normal;font-size:11.5px;color:#9aa2a7;font-weight:500}
+  .shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 72%;display:none}
+  .shot.on img{display:block}
+  .shot.on .ph{display:none}
+  .shot-meta{
+    position:absolute;left:8px;bottom:8px;max-width:64%;background:rgba(12,16,18,.62);color:#fff;
+    font-size:11px;padding:3px 8px;border-radius:7px;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .shot.on .shot-meta{display:block}
+  .shot-retake{
+    position:absolute;right:8px;bottom:8px;display:none;background:rgba(12,16,18,.62);color:#fff;
+    border:0;border-radius:7px;padding:5px 10px;font-size:11.5px;font-family:inherit;font-weight:700;
+  }
+  .shot.on .shot-retake{display:block}
+  .shot-gal{
+    position:absolute;right:10px;bottom:8px;font-size:11.5px;color:var(--brand);
+    text-decoration:underline;background:none;border:0;font-family:inherit;padding:4px;
+  }
+  .shot.on .shot-gal{display:none}
+  /* ---------- 读数自动识别提示 ---------- */
+  .ocrline{display:none}
+  .ocrline.on{display:block;font-size:11.5px;margin:5px 2px 0;color:var(--brand);font-weight:700}
+  .ocrline.warn{color:#a8620a}
+  .chk{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
+  .chk input{width:19px;height:19px;accent-color:var(--brand);flex:none}
+  .shot-zoom{
+    position:absolute;right:8px;top:8px;display:none;pointer-events:none;
+    background:rgba(12,16,18,.62);color:#fff;font-size:11px;font-weight:700;
+    padding:3px 8px;border-radius:7px;
+  }
+  .shot.on .shot-zoom{display:block}
+
+  /* ---------- 按钮 ---------- */
+  .actions{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+  .shotstat{text-align:center;font-size:12px;color:var(--ink-3);margin:-1px 0 1px}
+  .shotstat.ok{color:var(--brand);font-weight:700}
+  .btn{
+    border:none;border-radius:14px;padding:16px;font-size:17.5px;font-weight:800;
+    font-family:inherit;cursor:pointer;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.primary{background:linear-gradient(180deg,#11947b,#0e7a66);color:#fff;box-shadow:0 4px 14px rgba(14,122,102,.28)}
+  .btn.ghost{background:#fff;color:var(--brand);border:1.5px solid #cfe4de}
+  .btn.mini{padding:11px;font-size:14px}
+  .btn[disabled]{opacity:.5;box-shadow:none}
+
+  /* ---------- 折叠区 ---------- */
+  details.card{padding:0;overflow:hidden}
+  details.card>summary{
+    list-style:none;padding:14px;font-size:14.5px;font-weight:700;color:var(--ink);
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+  }
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card>summary:after{content:"›";margin-left:auto;color:var(--ink-3);font-size:19px;transition:transform .2s}
+  details[open].card>summary:after{transform:rotate(90deg)}
+  details.card>.body{padding:0 14px 14px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .lab{display:block;font-size:12px;color:var(--ink-2);margin:0 0 4px 2px}
+  .in{
+    width:100%;font-size:15px;font-family:inherit;color:var(--ink);background:#fbfcfc;
+    border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;
+  }
+  .in:focus{outline:none;border-color:var(--brand);background:#fff}
+  .note{font-size:12px;color:var(--ink-3);margin-top:9px;line-height:1.6}
+
+  /* ---------- 今日汇总 ---------- */
+  .sumgroup{font-size:12px;font-weight:800;color:var(--brand);margin:10px 0 2px;letter-spacing:1px}
+  .sumrow{display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px dashed #eef1f2}
+  .sumrow:last-child{border-bottom:none}
+  .sumrow .stg{width:72px;flex:none;font-size:10.8px;color:var(--ink-2);line-height:1.25}
+  .sumrow .eq{flex:1;min-width:0;font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0;white-space:nowrap}
+  .sumrow .eq i{font-style:normal;color:var(--ink-3);font-weight:600;font-size:10.5px;margin-left:5px}
+  .sumrow .vd{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--brand-soft);color:var(--brand);flex:none}
+  .sumrow .vd.f{background:var(--danger-soft);color:var(--danger)}
+
+  /* ---------- 记录列表 ---------- */
+  .hlist{max-height:270px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .hitem{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid #f2f4f5;font-size:13.5px}
+  .hitem:last-child{border-bottom:none}
+  .hitem .tm{color:var(--ink-3);font-size:12px;width:44px;flex:none;font-variant-numeric:tabular-nums}
+  .hitem .eq{color:var(--ink-2);font-size:12.5px;flex:1;font-variant-numeric:tabular-nums}
+  .hitem .nt{font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .hitem .st{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--brand-soft);color:var(--brand)}
+  .hitem .st.f{background:var(--danger-soft);color:var(--danger)}
+  .empty{font-size:13px;color:var(--ink-3);padding:14px 2px;text-align:center}
+
+  /* ---------- 凭证库 ---------- */
+  .libstat{font-size:12px;color:var(--ink-3);margin:2px 0 6px}
+  .pitem{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid #f2f4f5;cursor:pointer}
+  .pitem:last-child{border-bottom:none}
+  .pitem:active{background:#fafcfc}
+  .pitem img{
+    width:52px;height:68px;object-fit:cover;border-radius:8px;flex:none;
+    background:#eef1f2;border:1px solid #e6eaec;
+  }
+  .pthumb-bad{
+    width:52px;height:68px;flex:none;border-radius:8px;background:#f4f6f7;border:1px dashed #d7dee0;
+    display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#a9b2b6;
+  }
+  .pitem .pmeta{flex:1;min-width:0}
+  .pitem .pmeta b{display:block;font-size:14.5px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .pitem .pmeta span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pitem .st{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--brand-soft);color:var(--brand);flex:none}
+  .pitem .st.f{background:var(--danger-soft);color:var(--danger)}
+
+  /* ---------- 弹层 ---------- */
+  .modal{position:fixed;inset:0;background:rgba(14,18,20,.74);display:none;z-index:50;padding:12px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .modal.on{display:block}
+  .sheet{max-width:560px;margin:0 auto;background:#fff;border-radius:18px;padding:10px}
+  .sheet img{width:100%;display:block;border-radius:12px}
+  .sheet .bar{display:flex;gap:7px;margin-top:9px}
+  .sheet .bar .btn{flex:1;padding:12px;font-size:14px}
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+    background:rgba(22,24,28,.93);color:#fff;font-size:14px;padding:11px 18px;border-radius:999px;
+    opacity:0;transition:.22s;z-index:80;pointer-events:none;max-width:86vw;text-align:center;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- 照片大图（看读数用） ---------- */
+  .lightbox{
+    position:fixed;inset:0;z-index:70;background:rgba(8,10,12,.96);display:none;
+    overflow:hidden;touch-action:none;
+  }
+  .lightbox.on{display:flex;flex-direction:column}
+  .lightbox .stage{
+    flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  }
+  .lightbox img{
+    max-width:100%;max-height:100%;display:block;will-change:transform;position:relative;z-index:1;
+    transform-origin:50% 50%;transition:transform .12s ease-out;
+  }
+  .lightbox .hint{
+    position:absolute;left:50%;top:10px;transform:translateX(-50%);white-space:nowrap;
+    background:rgba(10,14,16,.58);color:#e9eef0;font-size:12px;font-weight:600;
+    padding:5px 12px;border-radius:999px;pointer-events:none;z-index:5;
+  }
+  .lightbox .bar{
+    display:flex;gap:8px;padding:10px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .lightbox .bar button{
+    flex:1;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:800;font-family:inherit;
+    background:rgba(255,255,255,.14);color:#fff;
+  }
+  .lightbox .bar button.primary{background:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <h1>P-shift胶水称重</h1>
+    <div class="meta"><span id="todayCount">今日 0 次</span><br><span id="clock">--:--</span></div>
+  </div>
+
+  <div class="warnbar" id="trimWarn"></div>
+  <div class="warnbar" id="storageWarn">
+    ⚠ <b>本机存储不可用</b>（空间满 / 无痕模式 / 浏览器限制）：记录只存在当前页面，关掉就没了。
+    请先用「导出 Excel」留档，或换一个浏览器打开。
+  </div>
+
+  <!-- 机种 / 阶段 / 标准 -->
+  <div class="card picker">
+    <div class="pickrow">
+      <span class="plab">机种</span>
+      <div class="seg" id="segBreed">
+        <button type="button" data-v="A33">A33</button>
+        <button type="button" data-v="A52">A52</button>
+      </div>
+    </div>
+    <div class="pickrow">
+      <span class="plab">阶段</span>
+      <div class="seg" id="segStage">
+        <button type="button" data-v="pre">涂布前</button>
+        <button type="button" data-v="post">涂完最后一件</button>
+      </div>
+    </div>
+    <div class="specline">
+      标准：胶水净重 <b>≥ <span id="specVal">0.030</span> g</b>
+    </div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="card result" id="resultCard">
+    <div class="rhead">
+      <span class="rlabel">胶水净重</span>
+      <span class="badge" id="badge">待录入</span>
+    </div>
+    <div class="rnum">
+      <span class="v" id="netVal">—</span>
+      <span class="u">g</span>
+      <span class="calc" id="calcLine"></span>
+    </div>
+    <div class="hint" id="hint">先称空盒 → 填入第 ① 步，再称涂胶后 → 填入第 ② 步</div>
+  </div>
+
+  <!-- 步骤 1 -->
+  <div class="card">
+    <div class="head">
+      <span class="idx">1</span><span class="t" id="title1">空盒读数</span>
+      <button class="sub link" id="btnReuse" type="button" disabled>↺ 用上次空盒</button>
+    </div>
+    <div class="field">
+      <input class="w" id="tare" type="text" inputmode="decimal" autocomplete="off" placeholder="0.0000" aria-label="空盒重量" aria-describedby="hint">
+      <span class="unit">g</span>
+    </div>
+    <div class="ocrline" id="ocrTare"></div>
+    <div class="shot" id="shotTare" role="button" tabindex="0" aria-label="拍空盒读数照片">
+      <div class="ph"><b>📷</b><span id="ph1a">拍空盒读数</span><i id="ph1b">把盒子放在玻璃罩里，屏幕和盒子一起入镜</i></div>
+      <img id="imgTare" alt="空盒读数照片">
+      <span class="shot-meta" id="metaTare"></span>
+      <span class="shot-zoom">🔍 点图片看大图</span>
+      <button class="shot-retake" id="retakeTare" type="button">重拍</button>
+      <button class="shot-gal" id="galTare" type="button">相册</button>
+    </div>
+  </div>
+
+  <!-- 步骤 2 -->
+  <div class="card">
+    <div class="head">
+      <span class="idx">2</span><span class="t" id="title2">涂胶后读数</span>
+      <span class="sub" id="sub2">吐胶后称重</span>
+    </div>
+    <div class="field">
+      <input class="w" id="gross" type="text" inputmode="decimal" autocomplete="off" placeholder="0.0000" aria-label="涂胶后重量" aria-describedby="hint">
+      <span class="unit">g</span>
+    </div>
+    <div class="ocrline" id="ocrGross"></div>
+    <div class="shot" id="shotGross" role="button" tabindex="0" aria-label="拍涂胶后读数照片">
+      <div class="ph"><b>📷</b><span id="ph2a">拍涂胶后读数</span><i id="ph2b">吐完胶放回秤上，屏幕和盒子一起入镜</i></div>
+      <img id="imgGross" alt="涂胶后读数照片">
+      <span class="shot-meta" id="metaGross"></span>
+      <span class="shot-zoom">🔍 点图片看大图</span>
+      <button class="shot-retake" id="retakeGross" type="button">重拍</button>
+      <button class="shot-gal" id="galGross" type="button">相册</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="shotstat" id="shotStat">照片 0/2 · 凭证必须有两张现场照片</div>
+    <button class="btn primary" id="btnShare" type="button">生成凭证并发送到群</button>
+    <button class="btn ghost" id="btnSaveOnly" type="button">只记录，不发送</button>
+  </div>
+
+  <!-- 设置 -->
+  <details class="card" id="cfgBox">
+    <summary>⚙️ 机台与操作员</summary>
+    <div class="body">
+      <div class="g2">
+        <div><label class="lab" for="cfgMachine">机台 / 工位</label><input class="in" id="cfgMachine" placeholder="如：涂布1号"></div>
+        <div><label class="lab" for="cfgOp">操作员</label><input class="in" id="cfgOp" placeholder="如：张三"></div>
+      </div>
+      <label class="chk" for="cfgAutoOcr"><input type="checkbox" id="cfgAutoOcr"> 拍照后自动识别读数，填进输入框</label>
+      <p class="note">胶水重量 = 涂胶后 − 空盒，由 App 自动相减。<br>
+        判定标准按「机种 + 阶段」自动套用，不用手填：<br>
+        A33 涂布前 ≥0.030 / 涂完 ≥0.025　　A52 涂布前 ≥0.030 / 涂完 ≥0.015</p>
+    </div>
+  </details>
+
+  <!-- 今日汇总（下班抄表用） -->
+  <details class="card" id="sumBox">
+    <summary>📝 今日汇总（抄表用） <span id="sumCount" style="color:var(--ink-3);font-weight:400;font-size:13px">0 条</span></summary>
+    <div class="body">
+      <div id="sumList"></div>
+      <p class="note" style="margin-top:8px">格式：涂胶后 − 空盒 = 胶水净重。<br>点下面按钮一次性复制，粘到电子表里直接改。</p>
+      <div class="g2" style="margin-top:10px">
+        <button class="btn ghost mini" id="btnCopySum" type="button">复制今日汇总</button>
+        <button class="btn ghost mini" id="btnCsv2" type="button">导出 Excel(CSV)</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- 凭证库 -->
+  <details class="card">
+    <summary>🗂 凭证库 <span id="histCount" style="color:var(--ink-3);font-weight:400;font-size:13px">0 张</span></summary>
+    <div class="body">
+      <div class="libstat" id="libStat"></div>
+      <div class="libstat" id="ledgerStat"></div>
+      <div class="hlist" id="histList"></div>
+      <p class="note" style="margin-top:8px">点任意一张就能看原图、再发一次。<br>凭证存在这台手机里，不联网；超过 400 张会自动删最旧的，长期留档请用 Excel 导出。</p>
+      <div class="g2" style="margin-top:10px">
+        <button class="btn ghost mini" id="btnCsv" type="button">导出 Excel(CSV)</button>
+        <button class="btn ghost mini" id="btnClear" type="button" style="color:var(--danger);border-color:#f0cfcf">清空凭证</button>
+      </div>
+    </div>
+  </details>
+
+  <p class="note" style="text-align:center;margin:14px 0 0">本页不联网：不请求网络、不上传、照片只留在本机</p>
+  <p class="note" id="secNote" style="text-align:center"></p>
+</div>
+
+<!-- 预览弹层 -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <img id="previewImg" alt="称重凭证">
+    <div class="bar">
+      <button class="btn ghost" id="btnCopy" type="button">复制文字</button>
+      <button class="btn ghost" id="btnDownload" type="button">保存图片</button>
+      <button class="btn primary" id="btnClose" type="button">完成</button>
+    </div>
+    <p class="note" id="modalTip" style="text-align:center"></p>
+  </div>
+</div>
+
+<!-- 照片大图：读数看不清时点开核对 -->
+<div class="lightbox" id="lightbox">
+  <div class="stage" id="lbStage">
+    <div class="hint">点一下放大 · 再点还原 · 放大后拖动</div>
+    <img id="lbImg" alt="读数的现场照片">
+  </div>
+  <div class="bar">
+    <button type="button" id="lbRetake">重拍</button>
+    <button type="button" id="lbClose" class="primary">关闭</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ===================== 基础工具 ===================== */
+var $ = function(s){ return document.querySelector(s); };
+var CFG_KEY = 'glue.cfg.v1';
+var LOG_KEY = 'glue.log.v1';
+// 照片对象：{ src:压缩后的图片来源, name:文件名, ts:文件时间(毫秒) }
+var S = { tare:'', gross:'', pTare:null, pGross:null, breed:'A33', stage:'pre' };
+
+// 存储失败必须让人看见：台账悄悄丢了比界面报错严重得多
+var storageBroken = false;
+function markStorageBroken(){
+  if (storageBroken) return;
+  storageBroken = true;
+  var el = document.getElementById('storageWarn');
+  if (el) el.classList.add('on');
+}
+
+// 台账被清理过：必须让人知道，凭证库里只剩多少、丢了哪些时段
+var archiveWarned = false;
+function markArchiveTrimmed(dropped, kept){
+  if (archiveWarned) return;
+  archiveWarned = true;
+  var el = document.getElementById('trimWarn');
+  if (!el) return;
+  el.textContent = '⚠ 本机空间不足，已自动清理最早的 ' + dropped + ' 条台账记录（现保留最近 ' +
+                   kept + ' 条）。请立即「导出 Excel」留档，之后每周导一次。';
+  el.classList.add('on');
+}
+
+var store = {
+  get: function(k, def){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }catch(e){ return def; } },
+  // 'ok' / 'quota'（容量不够，可裁剪后重试）/ 'fail'（存储不可用，别动数据）
+  setRaw: function(k, v){
+    try { localStorage.setItem(k, JSON.stringify(v)); return 'ok'; }
+    catch(e){
+      var quota = e && (e.name === 'QuotaExceededError' ||
+                        e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+                        e.code === 22 || e.code === 1014);
+      return quota ? 'quota' : 'fail';
+    }
+  },
+  // 返回 true/false，失败时上报，调用方据此改提示
+  set: function(k, v){
+    var r = store.setRaw(k, v);
+    if (r === 'fail'){ markStorageBroken(); return false; }
+    return r === 'ok';      // 容量不足也当失败（但别误报"存储不可用"）
+  }
+};
+
+/* ---------- 凭证库：图片存在本机 IndexedDB 里，不联网 ---------- */
+var DB_NAME = 'pshift-glue', DB_VER = 1, PROOF_STORE = 'proofs', MAX_PROOFS = 400;
+var dbPromise = null, dbConn = null;
+
+function openDB(){
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise(function(res, rej){
+    if (!window.indexedDB) return rej(new Error('no-idb'));
+    var req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = function(){
+      var db = req.result;
+      if (!db.objectStoreNames.contains(PROOF_STORE)){
+        var os = db.createObjectStore(PROOF_STORE, { keyPath:'id' });
+        os.createIndex('ts', 'ts', { unique:false });
+      }
+    };
+    req.onsuccess = function(){
+      dbConn = req.result;
+      dbConn.onclose = function(){ dbConn = null; dbPromise = null; };   // 连接被关掉后可重开
+      res(dbConn);
+    };
+    req.onerror = function(){ rej(req.error || new Error('idb')); };
+    req.onblocked = function(){ rej(new Error('blocked')); };
+  });
+  // 失败的 Promise 不能一直缓存：否则一次失败，凭证库这辈子都打不开
+  dbPromise.catch(function(){ dbPromise = null; });
+  return dbPromise;
+}
+
+// 页面关闭/切走时释放连接，避免下次打开被 blocked
+function closeDB(){
+  try { if (dbConn) dbConn.close(); } catch(e){}
+  dbConn = null; dbPromise = null;
+}
+window.addEventListener('pagehide', closeDB);
+window.addEventListener('beforeunload', closeDB);
+
+function dbPut(item){
+  return openDB().then(function(db){
+    return new Promise(function(res, rej){
+      var tx = db.transaction(PROOF_STORE, 'readwrite');
+      tx.objectStore(PROOF_STORE).put(item);
+      tx.oncomplete = function(){ res(true); };
+      tx.onerror = function(){ rej(tx.error); };
+      tx.onabort = function(){ rej(tx.error); };
+    });
+  });
+}
+/* 计数：只看条数，不碰 blob */
+function dbCount(){
+  return openDB().then(function(db){
+    return new Promise(function(res){
+      var tx = db.transaction(PROOF_STORE, 'readonly');
+      var r = tx.objectStore(PROOF_STORE).count();
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ res(0); };
+      tx.onabort = function(){ res(0); };
+    });
+  }).catch(function(){ return 0; });
+}
+
+/* 只取 id + ts（openKeyCursor 不读 value，所以不会把几百张图读进内存），新的在前。
+   失败返回 null（≠ 空数组），让调用方能区分「凭证库是空的」和「凭证库根本不可用」。 */
+function dbKeys(){
+  return openDB().then(function(db){
+    return new Promise(function(res, rej){
+      var out = [];
+      var tx = db.transaction(PROOF_STORE, 'readonly');
+      var cur = tx.objectStore(PROOF_STORE).index('ts').openKeyCursor(null, 'prev');
+      cur.onsuccess = function(){
+        var c = cur.result;
+        if (c){ out.push({ id: c.primaryKey, ts: c.key }); c.continue(); }
+        else res(out);
+      };
+      cur.onerror = function(){ rej(cur.error || new Error('cursor')); };
+      tx.onabort = function(){ rej(tx.error || new Error('abort')); };
+    });
+  }).catch(function(){ return null; });
+}
+
+/* 按 id 批量取（只取当前要显示的几张） */
+function dbGetMany(ids){
+  if (!ids.length) return Promise.resolve([]);
+  return openDB().then(function(db){
+    return new Promise(function(res){
+      var map = {};
+      var tx = db.transaction(PROOF_STORE, 'readonly');
+      var st = tx.objectStore(PROOF_STORE);
+      ids.forEach(function(id){
+        var r = st.get(id);
+        r.onsuccess = function(){ map[id] = r.result; };
+      });
+      tx.oncomplete = function(){ res(ids.map(function(id){ return map[id] || null; })); };
+      tx.onerror = function(){ res(ids.map(function(id){ return map[id] || null; })); };
+      tx.onabort = function(){ res(ids.map(function(id){ return map[id] || null; })); };
+    });
+  }).catch(function(){ return []; });
+}
+
+function dbClear(){
+  return openDB().then(function(db){
+    return new Promise(function(res){
+      var tx = db.transaction(PROOF_STORE, 'readwrite');
+      tx.objectStore(PROOF_STORE).clear();
+      tx.oncomplete = function(){ res(true); };
+      tx.onerror = function(){ res(false); };
+      tx.onabort = function(){ res(false); };    // 补齐 onabort
+    });
+  }).catch(function(){ return false; });
+}
+
+// 超过上限就删最旧的：先 count，再用 key 游标边删边走，全程不把图片读进内存
+function dbTrim(){
+  return dbCount().then(function(n){
+    if (n <= MAX_PROOFS) return 0;
+    var excess = n - MAX_PROOFS;
+    return openDB().then(function(db){
+      return new Promise(function(res){
+        var tx = db.transaction(PROOF_STORE, 'readwrite');
+        var store = tx.objectStore(PROOF_STORE);
+        var cur = store.index('ts').openKeyCursor();   // 最旧在前
+        var removed = 0;
+        cur.onsuccess = function(){
+          var c = cur.result;
+          if (!c || removed >= excess) return;
+          store.delete(c.primaryKey);
+          removed++;
+          c.continue();
+        };
+        cur.onerror = function(){};
+        tx.oncomplete = function(){ res(removed); };
+        tx.onerror = function(){ res(removed); };      // 删不掉也不能让整条链卡死
+        tx.onabort = function(){ res(removed); };
+      });
+    });
+  }).catch(function(){ return 0; });
+}
+
+// 判定标准：净重必须「≥ 下限」（工艺要求）
+var SPEC = {
+  A33: { pre:'0.030', post:'0.025' },
+  A52: { pre:'0.030', post:'0.015' }
+};
+var STAGE_NAME = { pre:'涂布前', post:'涂完最后一件' };
+
+var cfg = Object.assign({ machine:'', op:'', breed:'A33', stage:'pre', autoOcr:true }, store.get(CFG_KEY, {}) || {});
+var logs = store.get(LOG_KEY, []);
+if (!Array.isArray(logs)) logs = [];
+// 当天编号计数器：{ day:'20261023', n:12 }
+var SEQ_KEY = 'glue.seq.v1';
+var seq = store.get(SEQ_KEY, null);
+if (!seq || typeof seq !== 'object') seq = { day:'', n:0 };
+
+/* ---------- 十进制安全计算 ----------
+   GH-200 这类天平是 4 位小数（0.0001 g），用浮点相减会出现 0.03449999…
+   所以统一换成"整数最小单位 + 小数位数"来做加减，display 时再补小数点。 */
+function parseDec(v){
+  if (v === null || v === undefined) return null;
+  var s = String(v).trim().replace(/[，,\s]/g, '.').replace(/[^0-9.\-]/g, '');
+  var m = s.match(/^(-?)(\d*)(?:\.(\d*))?$/);
+  if (!m) return null;
+  var sign = m[1] === '-' ? -1 : 1;
+  var ip = m[2] || '';
+  var fp = m[3] || '';
+  if (ip === '' && fp === '') return null;
+  var digits = (ip === '' ? '0' : ip) + fp;
+  var n = parseInt(digits, 10);
+  if (!isFinite(n)) return null;
+  return { n: sign * n, d: fp.length };
+}
+function scaleDec(a, d){ return a.n * Math.pow(10, d - a.d); }
+// 按 d 位小数格式化一个整数（n 的单位是 10^-d）
+function fmtInt(n, d){
+  var neg = n < 0;
+  var s = String(Math.abs(Math.round(n)));
+  while (s.length <= d) s = '0' + s;
+  if (d > 0) s = s.slice(0, s.length - d) + '.' + s.slice(s.length - d);
+  return (neg ? '-' : '') + s;
+}
+function pad2(n){ return n < 10 ? '0' + n : '' + n; }
+function ymd(d){ return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()); }
+function clockStr(d){ return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+function fullTime(d){
+  return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + ' ' +
+         pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+var WEEK = ['日','一','二','三','四','五','六'];
+function dateStr(d){ return (d.getMonth()+1) + '月' + d.getDate() + '日 周' + WEEK[d.getDay()]; }
+
+// 文件时间戳 → "10-22 14:32"（不合理的时间返回空）
+function shortStamp(ms){
+  if (!ms) return '';
+  var d = new Date(ms);
+  var y = d.getFullYear();
+  if (!y || y < 2000 || d.getTime() > Date.now() + 86400000) return '';
+  return pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+var toastTimer = null;
+function toast(msg){
+  var t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 2400);
+}
+
+/* ===================== 读数判定 ===================== */
+function specOf(breed, stage){
+  var b = SPEC[breed] || SPEC.A33;
+  return b[stage || 'pre'] || b.pre;
+}
+function currentState(){
+  var tD = parseDec(S.tare), gD = parseDec(S.gross);
+  // 小数位数跟随天平：GH-200 是 4 位，普通台秤 2 位
+  var dec = Math.max(tD ? tD.d : 0, gD ? gD.d : 0, 2);
+  var tN = tD ? scaleDec(tD, dec) : null;
+  var gN = gD ? scaleDec(gD, dec) : null;
+  // 唯一算法：胶水净重 = 涂胶后 − 空盒（整数最小单位相减，零浮点误差）
+  var netN = (tN !== null && gN !== null) ? (gN - tN) : null;
+
+  // 下限判定：净重 ≥ 标准（"以上"含等于）
+  var limitStr = specOf(S.breed, S.stage);
+  var limitN = scaleDec(parseDec(limitStr), dec);
+  var pass = (netN === null) ? null : (netN >= limitN);
+  var diffN = (netN === null) ? null : (netN - limitN);
+
+  return { dec:dec, tareD:(tD ? tD.d : 2), grossD:(gD ? gD.d : 2),
+           tareN:tN, grossN:gN, netN:netN, limitStr:limitStr, limitN:limitN, diffN:diffN, pass:pass };
+}
+
+// 每个读数按「你输入的原样」显示：不补零、不截断
+// 注意 tareN/grossN 是按 dec 存放的，显示成自己的位数时要先换算回那个刻度
+function dTare(r){ return (r.tareD === undefined || r.tareD === null) ? (r.dec || 2) : r.tareD; }
+function dGross(r){ return (r.grossD === undefined || r.grossD === null) ? (r.dec || 2) : r.grossD; }
+function decDown(n, from, to){
+  if (to >= from) return n * Math.pow(10, to - from);
+  return Math.round(n / Math.pow(10, from - to));
+}
+function fmtVal(n, fromD, toD){ return fmtInt(decDown(n, fromD, toD), toD); }
+function rTare(r){ return fmtVal(r.tareN, (r.dec === undefined || r.dec === null) ? 2 : r.dec, dTare(r)); }
+function rGross(r){ return fmtVal(r.grossN, (r.dec === undefined || r.dec === null) ? 2 : r.dec, dGross(r)); }
+
+function render(){
+  var st = currentState();
+  var card = $('#resultCard');
+  var netEl = $('#netVal'), calcEl = $('#calcLine');
+  var badge = $('#badge'), hint = $('#hint');
+
+  card.classList.toggle('fail', st.pass === false);
+
+  if (st.netN === null){
+    netEl.textContent = '—';
+    calcEl.textContent = '';
+    badge.className = 'badge';
+    badge.textContent = '待录入';
+    hint.className = 'hint';
+    hint.textContent = (st.tareN === null)
+      ? '先称空盒 → 填入第 ① 步，再称涂胶后 → 填入第 ② 步'
+      : '第 ① 步已完成，吐胶后称重填入第 ② 步';
+  } else {
+    netEl.textContent = fmtInt(st.netN, st.dec);
+    calcEl.textContent = fmtVal(st.grossN, st.dec, st.grossD) + ' − ' + fmtVal(st.tareN, st.dec, st.tareD);
+    if (st.pass){
+      badge.className = 'badge pass';
+      badge.textContent = '合格';
+      hint.className = 'hint';
+      hint.textContent = (st.diffN === 0)
+        ? '标准 ≥' + st.limitStr + ' g，刚好达标'
+        : '标准 ≥' + st.limitStr + ' g，高于下限 +' + fmtInt(st.diffN, st.dec) + ' g';
+    } else {
+      badge.className = 'badge fail';
+      badge.textContent = '不合格';
+      hint.className = 'hint warn';
+      hint.textContent = '标准 ≥' + st.limitStr + ' g，低于下限 ' + fmtInt(Math.abs(st.diffN), st.dec) + ' g，请确认是否重称';
+    }
+  }
+
+  var tEl = $('#tare'), gEl = $('#gross');
+  var bad = (st.tareN !== null && st.grossN !== null && st.grossN < st.tareN);
+  tEl.classList.toggle('err', !!bad);
+  gEl.classList.toggle('err', !!bad);
+  tEl.setAttribute('aria-invalid', bad ? 'true' : 'false');
+  gEl.setAttribute('aria-invalid', bad ? 'true' : 'false');
+  if (bad){
+    hint.className = 'hint warn';
+    hint.textContent = '涂胶后读数比空盒还小，检查是否看反了';
+  } else {
+    // 抄错数字的兜底提醒（不拦你，只提醒）
+    var gw = guardWarning(st);
+    if (gw){ hint.className = 'hint warn'; hint.textContent = gw; }
+  }
+
+  // 机种 / 阶段 / 标准
+  $('#specVal').textContent = st.limitStr;
+  setSeg('#segBreed', S.breed);
+  setSeg('#segStage', S.stage);
+
+  var last = logs.length ? logs[logs.length - 1] : null;
+  var reuse = $('#btnReuse');
+  if (last && last.tareN !== null && last.tareN !== undefined){
+    reuse.textContent = '↺ 用上次 ' + rTare(last) + 'g';
+    reuse.disabled = false;
+  } else {
+    reuse.textContent = '↺ 用上次空盒';
+    reuse.disabled = true;
+  }
+}
+
+// 抄错数字的兜底提醒：位数不一致、净重离谱
+function guardWarning(st){
+  if (st.netN === null) return '';
+  var ti = String(S.tare).split('.')[0].replace(/[^0-9]/g, '');
+  var gi = String(S.gross).split('.')[0].replace(/[^0-9]/g, '');
+  if (ti && gi && ti.length !== gi.length){
+    return '两次读数的整数位数不一样（' + ti + ' / ' + gi + '），检查是否漏打小数点';
+  }
+  if (st.limitN > 0 && st.netN > st.limitN * 20){
+    return '净重是标准的 ' + Math.round(st.netN / st.limitN) + ' 倍，确认读数是否抄错';
+  }
+  return '';
+}
+
+function setSeg(sel, val){
+  var btns = document.querySelectorAll(sel + ' button');
+  for (var i = 0; i < btns.length; i++){
+    btns[i].classList.toggle('on', btns[i].getAttribute('data-v') === val);
+  }
+}
+
+/* ===================== 读数自动识别（可选，默认开） =====================
+   完全离线：不联网、不加载模型文件。10 个数字模板来自现场照片标定。
+   流程：找屏幕（偏青深色矩形）→ 分位阈值二值化 → 连通域切字 →
+        归一化 16×26 → 模板匹配 → 按“固定 4 位小数”拼读数。
+   任何一步不可信就拒答，绝不猜。 */
+var OCR_TPL = {"0":"FSpAgNT/////////6qpqABVAgL///////////////9RAVYDU////////////////KmqA6v///////////////yqAlf////+qlarU//////8qgNT////UFQAAav//////QIDU////vxUAAFX//////0CA1P///78AAABV/////9QqgOr///+/AAAAVf////+/QID/////agAAAJX/////qkCA/////0AAAADU/////4BAgP////8VAAAAv/////9qFYD///9AAAAAABX////qQEDq////vwAAAAAV////vypV//////8AAAAA/////78qav/////qAAAAFf////+/Kmr/////qgAAACr/////qiqA/////5UAAABA////6pUq1P////9VAAAAav///+qVQP//////KgAAAJX///+/gED/////6ioAABWq////v4BA/////+qValVq/////7+AQP///////////////+q/VUD////////////////qvypAqv//////////////v5UqQACA6ur/////////6qoqFRU=","1":"ABcXF12i0ejR6Ojo6LkXABcXF12iuejo////6Ojo6KIXFy6ioujo/////+jo6OjoFxddorno6P/////o6Ojo6BcXXaLR6P///////+jo6OgXF12i6Oj////////o6Oi5ABdduejo/////////+joRgAXi7no///////////o6EYALqLR6P//////////6NEXAC6i0ej//////////+i5AABGouj/////////////iwAARqLR/////////////3QAAAAXotH//////////7kuAAAARqL//////////7mLAAAXi9H////////////RiwAAF4v/////////////0YsXABei/////////////7mLFwAX6Oj///////////+5XRcARujo///////////RuV0XAF3o6P//////////0YtGFxeL6Oj/////////6LmLLhcu0ejo6P///////+i5dBcXLujo6Oj///////+5uUYXFy656Ojo////////uaJGFxcudOjo6Oj/////0bl0LhcXF0bo6Ojo///ouYtGFxcXAAA=","2":"ABd06P///////////7l0AEZGi+j//////////////9FGF4vo////////////////LgAXdNH//////////////xcAAAAAXV1ddKLR//////8AAAAAAAAAAAAAuf//////AAAAAAAAAAAAAKL//////wAAAAAAAAAAAACi//////8AAAAAAAAAAAAAuf/////oAAAAAAAAAAAAANH/////ogAAAAAALkYuFy7//////6IAABfo//////////////+LAKL/////////////////XXT////////////////oRgCL//////////////90AAAAi//////oAAAAAAAAAAAAALn/////iwAAAAAAAAAAAADo/////3QAAAAAAAAAAAAA//////9dAAAAAAAAAAAAAP//////RgAAAAAAAAAAAAD//////y4AAAAAAAAAAAAA/////+iiFxcXFwAAAAAAAP///////////+i5FwAAAAD/////////////uXQAAAAAov///////////7mLAAAAAACi//////////+5dAAAAAA=","3":"ACq4////////////47gqABxH4////////////////6oAOZz/////////////////AAA5nP///////////////wAAAAAqgJycnJzj//////8AAAAAAAAAAAAOuP//////AAAAAAAAAAAADsb//////wAAAAAAAAAAAA7U//////EAAAAAAAAAAAAc///////GAAAAAAAAAAAAHP//////cQAAAA4qKiocDmP//////0cADo7///////////////8qACrx///////////////jKgAc8f//////////////nA4AAA6q/////////////7gcAAAAAAAAAAAc4/////+qHAAAAAAAAAAAAOP/////nBwAAAAAAAAAAADj////8YAcAAAAAAAAAAAA4/////FVHAAAAAAAAAAAAPH////xKhwAAAAAAAAAAADx////4yocAAAcOTkqHBxx/////8YqHACq///////////////GKhzx////////////////qioc////////////////8Y4qAMb/////////////8ZwcAAA=","4":"AAAAAAAAAAAAAAD/////ICC/v59gAAAAAAAg//////9g/////2AAAAAAYP//////YP//////AAAAAL///////7///////wAAAADf///////f//////8AAAAA///////f///////fAAAAAP//////3///////3wAAAAD//////9///////58AAAAA///////f//////+fAAAAAP//////gP//////34CAYID/////34D//////////////////99gQP/////////////////fIAAg////////////////nyAAAADf/////////////58gAAAAAAAAICAgn/////+fIAAAAAAAAAAAAJ/f///fgCAAAAAAAAAAAACf3///34AgAAAAAAAAAAAgv9///9+AIAAAAAAAAAAAQL/f///fgCAAAAAAAAAAAGC/3///34AgAAAAAAAAAABgv9//39+AIAAAAAAAAAAAYL/f/9+/YCAAAAAAAAAAAGC/3//fn2AgAAAAAAAAAABgn9//34BAIAAAAAAAAAAAYIDf34BgIAA=","5":"IEBgv9//////////v59AIGBgv9///////////7+fgCCAn9/f//////////+/n2AggJ/f3///////////v59AAIC/39//37+/v5+fgJ9AIACAv9///9+fQCAAAAAAAAAAYL/f///fn0AAAAAAAAAAAIC/3///359AAAAAAAAAAACA39///9+fIAAAAAAAAAAAn9////+/nyAAAAAAAAAAAL/f////37+AICAgAAAAAAC/3///////////////IAAAIL/f//////////////8gAAAA39///////////////98AAABA3///////////////AAAAAAAAAAAAIN///////wAAAAAAAAAAAAC///////8AAAAAAAAAAAAg3///////AAAAAAAAAAAAIL//////vwAAAAAAAAAAACC//////78AAAAAAAAAAABA3/////+/AABAQGBgYGBgn///////YACfv///////////////32Cfv////////////////99gv9////////////////+/QGDf//////////////+/QAA=","6":"FRVAlb///////////6oqACpVlb/////////////qahVAgL/q////////////6lUVQGq/6v//////////6qoqAEBqv////+q/amqAgGoqFQAqar/////qVRUAAAAAAAAAFWq/////6lUAAAAAAAAAAACAv////+pAAAAAAAAAAAAAler////qQAAAAAAAAAAAFZXq////vxUAAAAAAAAAABWq/////+pVFQAVFQAAAAAVler/////////////FQAAAJX///////////////8qAEDq/////////////////6pV////////////////////av/////qFQAAAJX//////4D/////6gAAAACA//////+V/////+oAAAAAqv//////1P/////qAAAAANT/////6v//////1AAAAADU/////6r//////5UAAAAA1P////9V///////UFRUVVf//////Kv//////////////////6ir//////////////////+oqlf////////////////+qAABq6v////////////+VAAA=","7":"2/n////////////5+dRbAP//////////////////88LC//////////////////nhBknh///////////////55wAAACQkMTE9Pef/////+eEAAAAAAAAAAADC//////nbAAAAAAAAAAAG1P/////5sAAAAAAAAAAAGNT/////7XkAAAAAAAAAADHb/////+1hAAAAAAAAAAZb2//////USQAAAAAAAAAAW9v/////tkMAAAAAAAAAAB68////7YxDAAAAAAAABgxVtvP/+eFnHgAAAAAAAAwxjLDt//nhWwwAAAAAAAAMQ57h///z1FseAAAAAAAGDEmq5///88JVHgAAAAAADB5tsOf///OkSR4AAAAAAAwqhrzn//PnkkkkAAAAAAwMMZK85//z4YZJKgAAAAAMDDeSwuf/88JzSSoAAAAADBI9ksLt8/O2YUkqAAAAAAwSQ5LI7fPntlU9KgAAAAAMEkOSwu3z7c6SVSQAAAAAAAYYN4bI8/nt4ZhPAAAAAAAABh5DedTz59SMSQAAAAAAAAYeKnm259SqeTE=","8":"AAARqu7////////u3ap3ERERqu7//////////////8wRM6ru////////////////ADO77v///////////////wBEu+7//+53M1WZ//////8AVe7////uEQAARP//////AHfu////zAAAAFX/////3QCI7v///7sAAABV/////90RiO7///+IAAAAd//////MEaru////ZgAAAKr/////mRGq7v///7tERETd////7kQiu////////////////90iAMz//////////////+7dERH//////93u7v/////uuxEi/////93MzMzu////7rsRM/////+qAAAAiP///+6qImb/////ZgAAAFX////dqiK7/////2YAABF3////3Ygi/////91VAAARiP//7t13Ef/////uMyIiM4j//+7MZiL/////7kQzMzOZ///uzEQi//////+ZMzMzzP//3apEIt3u////////////7t27RCLMzMzM3d3dzMzM7v//zDMzZszMzMzMzMzMzN3//7siIgBmqru7zMzMzMzd7t1EERE=","9":"AAC//////////////99gACCf3////////////////79A3///////////////////YN///////////////////5/f/////9+AgJ////////+f3/////+AAAAAv///////n9//////YAAAAN///////5/f/////yAAAAD//////9/f/////98AAAAA//////+/3//////fAAAAIP//////n9///////yAgIGD//////5/f//////////////////+AgN//////////////////QAAg3///////////////nyAAAACA/////////////78gAAAAAAAAAAAAv/////+/IAAAAAAAAAAAAIDf////vyAAAAAAAAAAAACf3////78gAAAAAAAAAAAAv9////+fIAAAAAAAAAAAAN/f////gCAAAAAAAAAAACDf3///34AgAAAgQEBAYECA3////99gIACA39/////////////fYCDf39//////////////v0Ag39//////////////358gIGDf/////////////58gAAA="};
+
+var OCR = (function(){
+  'use strict';
+  var SW = 16, SH = 26;                 // 字形归一化尺寸
+  var DECIMALS = 4;                     // 本秤固定 4 位小数
+  var MIN_D = 5, MAX_D = 7;             // 可行位数（量程 220g）
+  var MAX_VALUE = 220, MIN_MARGIN = 0.012;
+  var WORK_W = 720, DIL = 2;
+  var PCTS = [12, 15, 18, 21];
+  var tplCache = null;
+
+  function templates(){
+    if (tplCache) return tplCache;
+    var out = {}, d, bin, arr, i;
+    for (d in OCR_TPL){
+      if (!Object.prototype.hasOwnProperty.call(OCR_TPL, d)) continue;
+      bin = atob(OCR_TPL[d]);
+      arr = new Uint8Array(bin.length);
+      for (i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      out[d] = arr;
+    }
+    tplCache = out;
+    return out;
+  }
+
+  function loadImg(src){
+    return new Promise(function(res, rej){
+      var im = new Image();
+      im.onload = function(){ res(im); };
+      im.onerror = function(){ rej(new Error('img')); };
+      im.src = src;
+    });
+  }
+
+  /* 连通域：行程编码 + 并查集（比逐像素 BFS 快很多） */
+  function label(mask, w, h){
+    var runs = [], rowStart = new Int32Array(h + 1), y, x, base, x0;
+    for (y = 0; y < h; y++){
+      rowStart[y] = runs.length / 3;
+      base = y * w;
+      x = 0;
+      while (x < w){
+        if (mask[base + x]){
+          x0 = x;
+          while (x < w && mask[base + x]) x++;
+          runs.push(y, x0, x - 1);
+        } else x++;
+      }
+    }
+    rowStart[h] = runs.length / 3;
+    var n = runs.length / 3, parent = new Int32Array(n), i;
+    for (i = 0; i < n; i++) parent[i] = i;
+    function find(a){ while (parent[a] !== a){ parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    for (y = 1; y < h; y++){
+      var pa = rowStart[y - 1], pb = rowStart[y], j = pa, k, s, e, a, b;
+      for (i = pb; i < rowStart[y + 1]; i++){
+        s = runs[i * 3 + 1]; e = runs[i * 3 + 2];
+        while (j < pb && runs[j * 3 + 2] < s - 1) j++;
+        for (k = j; k < pb && runs[k * 3 + 1] <= e + 1; k++){
+          a = find(k); b = find(i);
+          if (a !== b) parent[b] = a;
+        }
+      }
+    }
+    var map = {}, out = [], root, c;
+    for (i = 0; i < n; i++){
+      root = find(i);
+      c = map[root];
+      if (!c){
+        c = map[root] = { x: runs[i*3+1], y: runs[i*3], x2: runs[i*3+2], y2: runs[i*3], area: 0 };
+      }
+      c.area += runs[i*3+2] - runs[i*3+1] + 1;
+      if (runs[i*3+1] < c.x) c.x = runs[i*3+1];
+      if (runs[i*3+2] > c.x2) c.x2 = runs[i*3+2];
+      if (runs[i*3] < c.y) c.y = runs[i*3];
+      if (runs[i*3] > c.y2) c.y2 = runs[i*3];
+    }
+    for (var key in map){
+      if (!Object.prototype.hasOwnProperty.call(map, key)) continue;
+      c = map[key];
+      c.w = c.x2 - c.x + 1; c.h = c.y2 - c.y + 1;
+      out.push(c);
+    }
+    return out;
+  }
+
+  /* 方形结构元素膨胀（可分两趟做，等价于逐点平移取并） */
+  function dilate(mask, w, h, r){
+    var tmp = new Uint8Array(w * h), out = new Uint8Array(w * h);
+    var x, y, d, b, v, xx, yy;
+    for (y = 0; y < h; y++){
+      b = y * w;
+      for (x = 0; x < w; x++){
+        v = 0;
+        for (d = -r; d <= r; d++){
+          xx = x + d;
+          if (xx >= 0 && xx < w && mask[b + xx]){ v = 1; break; }
+        }
+        tmp[b + x] = v;
+      }
+    }
+    for (x = 0; x < w; x++){
+      for (y = 0; y < h; y++){
+        v = 0;
+        for (d = -r; d <= r; d++){
+          yy = y + d;
+          if (yy >= 0 && yy < h && tmp[yy * w + x]){ v = 1; break; }
+        }
+        out[y * w + x] = v;
+      }
+    }
+    return out;
+  }
+
+  function percentile(arr, n, p){
+    var copy = Array.prototype.slice.call(arr, 0, n);
+    copy.sort(function(a, b){ return a - b; });
+    return copy[Math.min(n - 1, Math.max(0, Math.floor(n * p / 100)))];
+  }
+
+  /* 第 1 步：在整张照片里找屏幕（偏青的深色矩形） */
+  function findLcd(rgba, w, h){
+    var n = w * h, mask = new Uint8Array(n), i, r, g, b, br;
+    for (i = 0; i < n; i++){
+      r = rgba[i * 4]; g = rgba[i * 4 + 1]; b = rgba[i * 4 + 2];
+      br = (r + g + b) / 3;
+      // 屏幕是青灰色：蓝≈绿、都高于红；绿色台面/塑料件蓝明显低于绿，用 (g-b) 卡掉
+      mask[i] = ((b - r) > 8 && (g - r) > 8 && (g - b) < 22 && br > 55 && br < 185) ? 1 : 0;
+    }
+    mask = dilate(mask, w, h, 1);
+    mask = dilate(mask, w, h, 1);
+    var comps = label(mask, w, h), areaMin = w * h * 0.01, cands = [], c, ar, score;
+    for (i = 0; i < comps.length; i++){
+      c = comps[i];
+      if (c.area < areaMin) continue;
+      ar = c.w / c.h;
+      if (ar < 1.6 || ar > 8) continue;
+      if (c.area / (c.w * c.h) < 0.45) continue;
+      score = c.area * (1 - Math.abs(ar - 3.6) / 8);
+      c.score = score;
+      cands.push(c);
+    }
+    cands.sort(function(a, b){ return b.score - a.score; });
+    cands = cands.slice(0, 4);
+    // 每个候选块算平均颜色，供颜色校验用
+    // 同时累加二阶矩，估计屏幕的倾斜角（手机拍歪了屏幕是斜的）
+    var k, cc, sr, sg, sb, cnt, px, xx2, yy2, sx, sy, sxx, syy, sxy;
+    for (k = 0; k < cands.length; k++){
+      cc = cands[k]; sr = 0; sg = 0; sb = 0; cnt = 0; sx = 0; sy = 0; sxx = 0; syy = 0; sxy = 0;
+      for (yy2 = cc.y; yy2 <= cc.y2; yy2++){
+        for (xx2 = cc.x; xx2 <= cc.x2; xx2++){
+          if (!mask[yy2 * w + xx2]) continue;
+          px = (yy2 * w + xx2) * 4; sr += rgba[px]; sg += rgba[px+1]; sb += rgba[px+2]; cnt++;
+          sx += xx2; sy += yy2; sxx += xx2 * xx2; syy += yy2 * yy2; sxy += xx2 * yy2;
+        }
+      }
+      if (cnt){
+        cc.mean = { r: sr/cnt, g: sg/cnt, b: sb/cnt };
+        var mx = sx / cnt, my = sy / cnt;
+        var mu20 = sxx / cnt - mx * mx, mu02 = syy / cnt - my * my, mu11 = sxy / cnt - mx * my;
+        cc.angle = 0.5 * Math.atan2(2 * mu11, mu20 - mu02);      // 弧度，正 = 顺时针歪
+      }
+    }
+    return cands;
+  }
+
+  /* 第 2 步：屏幕内多档阈值分割，取字高最整齐的一组 */
+  function segment(gray, w, h){
+    var best = null, p, i, c;
+    for (p = 0; p < PCTS.length; p++){
+      var t = percentile(gray, w * h, PCTS[p]);
+      var mask = new Uint8Array(w * h);
+      for (i = 0; i < w * h; i++) mask[i] = gray[i] < t ? 1 : 0;
+      var dm = dilate(mask, w, h, DIL);
+      var comps = label(dm, w, h);
+      var glyphs = [];
+      for (i = 0; i < comps.length; i++){
+        c = comps[i];
+        if (c.area < h * h * 0.003) continue;
+        if (c.h < 0.35 * h || c.h > 0.95 * h) continue;
+        var cr = c.w / c.h;
+        if (cr < 0.18 || cr > 0.95) continue;
+        if (c.y + c.h > h * 0.99) continue;
+        if (c.x <= 0 || c.y <= 0) continue;          // 贴着屏幕左/上边的是边框暗角，不是数字
+        glyphs.push(c);
+      }
+      if (!glyphs.length) continue;
+      glyphs.sort(function(a, b){ return a.x - b.x; });
+      var hs = [], j;
+      for (j = 0; j < glyphs.length; j++) hs.push(glyphs[j].h);
+      hs.sort(function(a, b){ return a - b; });
+      var med = hs[Math.floor(hs.length / 2)];
+      var keep = [];
+      for (j = 0; j < glyphs.length; j++){
+        if (glyphs[j].h >= 0.7 * med && glyphs[j].h <= 1.3 * med) keep.push(glyphs[j]);
+      }
+      if (!keep.length) continue;
+      var sum = 0, sq = 0, k;
+      for (k = 0; k < keep.length; k++){ sum += keep[k].h; sq += keep[k].h * keep[k].h; }
+      var mean = sum / keep.length;
+      var std = Math.sqrt(Math.max(0, sq / keep.length - mean * mean));
+      var unif = mean > 0 ? 1 - std / mean : 0;
+      var score = keep.length + unif * 5;
+      if (!best || score > best.score) best = { glyphs: keep, mask: dm, pct: PCTS[p], score: score };
+    }
+    return best;
+  }
+
+  /* 第 3 步：字形归一化到 16×26（按面积平均后二值化） */
+  function glyphVec(mask, w, c){
+    var out = new Float32Array(SW * SH), tx, ty, sx0, sx1, sy0, sy1, sx, sy, cnt, sum;
+    for (ty = 0; ty < SH; ty++){
+      sy0 = c.y + Math.floor(ty * c.h / SH);
+      sy1 = c.y + Math.max(Math.floor((ty + 1) * c.h / SH), Math.floor(ty * c.h / SH) + 1);
+      for (tx = 0; tx < SW; tx++){
+        sx0 = c.x + Math.floor(tx * c.w / SW);
+        sx1 = c.x + Math.max(Math.floor((tx + 1) * c.w / SW), Math.floor(tx * c.w / SW) + 1);
+        sum = 0; cnt = 0;
+        for (sy = sy0; sy < sy1; sy++){
+          for (sx = sx0; sx < sx1; sx++){
+            sum += mask[sy * w + sx] ? 1 : 0;
+            cnt++;
+          }
+        }
+        out[ty * SW + tx] = cnt ? (sum / cnt > 0.5 ? 1 : 0) : 0;
+      }
+    }
+    return out;
+  }
+
+  /* 第 4 步：模板匹配，返回 [数字, 置信间隔] */
+  function classify(vec, tpl){
+    var bestD = 1e9, bestC = '?', secondD = 1e9, d, t, dist, i;
+    for (d in tpl){
+      if (!Object.prototype.hasOwnProperty.call(tpl, d)) continue;
+      t = tpl[d];
+      dist = 0;
+      for (i = 0; i < vec.length; i++) dist += Math.abs(vec[i] * 255 - t[i]);
+      dist = dist / vec.length / 255;
+      if (dist < bestD){ secondD = bestD; bestD = dist; bestC = d; }
+      else if (dist < secondD) secondD = dist;
+    }
+    return [bestC, secondD - bestD];
+  }
+
+  function assemble(digits){
+    var pos = digits.length - DECIMALS;
+    if (pos < 1) return { err: '位数不足以放置小数点' };
+    var text = digits.slice(0, pos) + '.' + digits.slice(pos);
+    var v = parseFloat(text);
+    if (!isFinite(v)) return { err: '数字串无法解析' };
+    if (v > MAX_VALUE) return { err: '读数 ' + text + ' 超出量程' };
+    return { text: text, value: v };
+  }
+
+  function layoutError(glyphs){
+    var n = glyphs.length, i, ws = [], med, maxW = 0;
+    if (n < MIN_D || n > MAX_D) return '字符数 ' + n + ' 超出范围';
+    for (i = 0; i < n; i++) ws.push(glyphs[i].w);
+    ws.sort(function(a, b){ return a - b; });
+    med = ws[Math.floor(ws.length / 2)];
+    if (med <= 0) return '字宽异常';
+    for (i = 0; i < ws.length; i++) if (ws[i] > maxW) maxW = ws[i];
+    if (maxW > 1.55 * med) return '有字符明显过宽（可能粘连）';
+    // 秤上的数字是等距排的：某两位之间空得特别大，多半混进了不是数字的东西，宁可不认
+    for (i = 1; i < n; i++){
+      if (glyphs[i].x - (glyphs[i - 1].x + glyphs[i - 1].w) > 2.2 * med) return '数字间距异常';
+    }
+    return null;
+  }
+
+  /* 真假屏幕的三道判别：数字行要横跨屏宽合理比例、屏底颜色要均匀、数字要比屏底明显更暗。
+     实测：托盘那类"绿色塑料件"能被误当成屏幕，靠这三条挡住。 */
+  function plainCheck(gray, cw, ch, seg, lcd){
+    var gs = seg.glyphs, i, x0 = gs[0].x, x1 = gs[gs.length - 1].x + gs[gs.length - 1].w;
+    var cover = (x1 - x0) / cw;
+    var INFO = ' cover=' + cover.toFixed(2);
+    if (cover < 0.30 || cover > 1.02) return '数字行占比异常' + INFO;
+
+    // 先看颜色：真屏幕是偏青的深色块（蓝≈绿、都高于红）；绿色塑料件蓝远低于绿
+    if (lcd && lcd.mean){
+      var m = lcd.mean;
+      INFO += ' rgb=' + m.r.toFixed(0) + '/' + m.g.toFixed(0) + '/' + m.b.toFixed(0);
+      if (m.g - m.r < 8 || m.b - m.r < 8) return '屏幕颜色不对(非青色)' + INFO;
+      if (m.b < 0.72 * m.g) return '屏幕偏绿(疑似绿色塑料)' + INFO;
+    }
+
+    // 背景 = 不在任何字符框内的像素
+    var inBox = new Uint8Array(cw * ch), j, y, x, c;
+    for (i = 0; i < gs.length; i++){
+      c = gs[i];
+      for (y = c.y; y < c.y + c.h; y++){
+        for (x = c.x; x < c.x + c.w; x++) inBox[y * cw + x] = 1;
+      }
+    }
+    var bg = [], fg = [], v;
+    for (j = 0; j < cw * ch; j++){
+      v = gray[j];
+      if (inBox[j]) fg.push(v);
+      else bg.push(v);
+    }
+    if (bg.length < 50 || fg.length < 20) return '像素太少';
+    bg.sort(function(a, b){ return a - b; });
+    var med = bg[Math.floor(bg.length / 2)];
+    fg.sort(function(a, b){ return a - b; });
+    var dark = fg[Math.floor(fg.length * 0.10)];       // 笔画像素 = 字符框内最暗的 10%
+    INFO += ' dark=' + dark + ' bg=' + med;
+    if (med <= 0 || dark > 0.80 * med) return '数字与屏底对比度不足' + INFO;
+    return null;
+  }
+
+  var MIN_TILT = 1.5 * Math.PI / 180, MAX_TILT = 25 * Math.PI / 180;
+
+  /* 把照片画到工作画布上；angle≠0 时先绕中心转正（空出来的角填中性灰，不会被当成屏幕） */
+  function drawWork(im, angle){
+    var w = WORK_W, h = Math.max(1, Math.round(im.height * WORK_W / im.width));
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var ctx = cv.getContext('2d');
+    if (angle){
+      ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, w, h);
+      ctx.translate(w / 2, h / 2); ctx.rotate(angle); ctx.translate(-w / 2, -h / 2);
+    }
+    ctx.drawImage(im, 0, 0, w, h);
+    return { data: ctx.getImageData(0, 0, w, h).data, w: w, h: h };
+  }
+
+  /* 拍歪的照片：屏幕外接框比数字高很多，字会被当成"太矮"滤掉。
+     第一遍失败或置信偏低时，按估出的倾角转正再认一遍，取更可信的那次。 */
+  function recognize(src){
+    return loadImg(src).then(function(im){
+      var first = recognizeOn(drawWork(im, 0));
+      var a = first.angle;
+      if (!(Math.abs(a) >= MIN_TILT && Math.abs(a) <= MAX_TILT)) return first;
+      var second = recognizeOn(drawWork(im, -a));
+      if (second.ok) second.deskew = Math.round(a * 1800 / Math.PI) / 10;
+      // 转正后的几何更干净（实测歪 4~12° 的照片，转正那遍更不容易认错），能认出来就以它为准
+      return second.ok ? second : first;
+    });
+  }
+
+  function recognizeOn(work){
+      var data = work.data, w = work.w, h = work.h;
+      var cands = findLcd(data, w, h);
+      if (!cands.length) return { ok: false, reason: '未找到屏幕' };
+      var angle = cands[0].angle || 0;
+
+      // 候选块可能有多个（例如底部绿色台面也偏青）：逐个试，第一个通过的为准
+      var firstReason = '';
+      for (var ci = 0; ci < cands.length; ci++){
+        var lcd = cands[ci];
+        var cw = lcd.w, ch = lcd.h, gray = new Int16Array(cw * ch), i, x, y;
+        for (y = 0; y < ch; y++){
+          for (x = 0; x < cw; x++){
+            i = ((lcd.y + y) * w + (lcd.x + x)) * 4;
+            gray[y * cw + x] = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+          }
+        }
+        var seg = segment(gray, cw, ch);
+        if (!seg){ if (!firstReason) firstReason = '屏幕上没找到数字'; continue; }
+        var bad = layoutError(seg.glyphs);
+        if (bad){ if (!firstReason) firstReason = bad; continue; }
+        bad = plainCheck(gray, cw, ch, seg, lcd);
+        if (bad){ if (!firstReason) firstReason = bad; continue; }
+
+        var tpl = templates(), digits = '', margins = [], j, r;
+        for (j = 0; j < seg.glyphs.length; j++){
+          r = classify(glyphVec(seg.mask, cw, seg.glyphs[j]), tpl);
+          digits += r[0];
+          margins.push(r[1]);
+        }
+        var asm = assemble(digits);
+        if (asm.err){ if (!firstReason) firstReason = asm.err; continue; }
+        var conf = Math.min.apply(null, margins);
+        return { ok: true, text: asm.text, value: asm.value, conf: conf, angle: lcd.angle || 0,
+                 reliable: conf >= MIN_MARGIN, n: digits.length, pct: seg.pct, cand: ci };
+      }
+      return { ok: false, reason: firstReason || '识别失败', angle: angle };
+  }
+
+  return { recognize: recognize };
+})();
+
+/* ---------- 识别结果 → 输入框 ---------- */
+function ocrLineEl(which){ return $(which === 'tare' ? '#ocrTare' : '#ocrGross'); }
+function clearOcrLine(which){
+  var el = ocrLineEl(which);
+  if (el){ el.className = 'ocrline'; el.textContent = ''; }
+}
+function showOcrLine(which, text, warn){
+  var el = ocrLineEl(which);
+  if (!el) return;
+  el.className = 'ocrline on' + (warn ? ' warn' : '');
+  el.textContent = text;
+}
+// 每个输入框一个令牌：识别途中用户手动改了数字、或者又拍了一张，旧的识别结果作废，
+// 不能晚到几百毫秒再把人刚填的数覆盖掉
+var ocrToken = { tare:0, gross:0 };
+function cancelOcr(which){ ocrToken[which]++; }
+function autoFillFromPhoto(which, src){
+  if (cfg.autoOcr === false) return;
+  var key = which === 'tare' ? 'tare' : 'gross';
+  var inputSel = which === 'tare' ? '#tare' : '#gross';
+  var token = ++ocrToken[key];
+  showOcrLine(which, '识别中…', false);
+  OCR.recognize(src).then(function(r){
+    if (token !== ocrToken[key]) return;              // 已过期：用户改过数字或换了照片
+    if (!r.ok){ showOcrLine(which, '没认出读数，请照照片手动填', true); return; }
+    S[key] = r.text;
+    $(inputSel).value = r.text;
+    render();
+    showOcrLine(which, '识别 ' + r.text + (r.reliable ? ' · 请核对' : ' · 置信偏低，请核对照片'), !r.reliable);
+  }).catch(function(){ if (token === ocrToken[key]) showOcrLine(which, '没认出读数，请照照片手动填', true); });
+}
+/* ===================== 拍照 ===================== */
+// 解码时就把 EXIF 方向摆正。
+// 直接按 <img> 的 naturalWidth/Height 算缩放，在部分浏览器上拿到的是「未旋转」的宽高，
+// 而 drawImage 又按「已旋转」画，竖拍照片就会被横向拉扁——凭证上的数字直接糊掉。
+// createImageBitmap(file, {imageOrientation:'from-image'}) 一次解决；不支持时退回 <img>。
+function decodePhoto(file){
+  return new Promise(function(resolve, reject){
+    function byImg(){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error('读取失败')); };
+      reader.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error('图片解码失败')); };
+        img.onload = function(){
+          resolve({ source: img, w: img.naturalWidth || img.width, h: img.naturalHeight || img.height, oriented: true });
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    if (window.createImageBitmap){
+      var p;
+      try { p = createImageBitmap(file, { imageOrientation: 'from-image' }); }
+      catch(e){ p = null; }
+      if (p && p.then){
+        p.then(function(bmp){
+          resolve({ source: bmp, w: bmp.width, h: bmp.height, oriented: true });
+        }, function(){ byImg(); });
+        return;
+      }
+    }
+    byImg();
+  });
+}
+
+function compressPhoto(file){
+  return decodePhoto(file).then(function(d){
+    var max = 2000;   // 留足清晰度，凭证上要能看清屏幕数字
+    // 宽高和实际绘制用同一个来源，彻底避免"画布比例 ≠ 内容比例"导致的拉伸
+    var w = d.w, h = d.h;
+    var s = Math.min(1, max / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * s));
+    c.height = Math.max(1, Math.round(h * s));
+    c.getContext('2d').drawImage(d.source, 0, 0, c.width, c.height);
+    if (d.source && d.source.close) { try { d.source.close(); } catch(e){} }
+    return {
+      src: c.toDataURL('image/jpeg', 0.92),
+      w: c.width, h: c.height,
+      ow: w, oh: h
+    };
+  });
+}
+
+var KEYMAP = { tare:{ state:'pTare', img:'#imgTare', shot:'#shotTare', meta:'#metaTare' },
+               gross:{ state:'pGross', img:'#imgGross', shot:'#shotGross', meta:'#metaGross' } };
+
+function paintShot(which){
+  var m = KEYMAP[which];
+  var p = S[m.state];
+  var shot = $(m.shot);
+  if (!p){
+    shot.classList.remove('on');
+    $(m.img).removeAttribute('src');
+    $(m.meta).textContent = '';
+  } else {
+    $(m.img).src = p.src;
+    shot.classList.add('on');
+    var stamp = shortStamp(p.ts);
+    $(m.meta).textContent = stamp ? ('拍摄 ' + stamp) : (p.name || '已拍照');
+  }
+  updateShotStat();
+}
+
+function updateShotStat(){
+  var el = $('#shotStat');
+  if (!el) return;
+  var have = (S.pTare ? 1 : 0) + (S.pGross ? 1 : 0);
+  el.textContent = have >= 2
+    ? '照片 2/2 ✓ 可以生成凭证'
+    : '照片 ' + have + '/2 · 凭证必须有两张现场照片';
+  el.classList.toggle('ok', have >= 2);
+}
+
+// 取消选择时很多浏览器不派发 change，隐藏 input 会留在 DOM 里。
+// 这里只保证「同一时刻最多残留一个」，由下一次 pickPhoto 负责回收：
+// 千万不能一回到页面就把 input 删掉——慢机型上 change 可能迟到几秒，
+// 提前删节点会让那张照片彻底丢掉，而且用户毫不知情。
+var activeInput = null;
+function dropActiveInput(){
+  if (activeInput && activeInput.parentNode) activeInput.parentNode.removeChild(activeInput);
+  activeInput = null;
+}
+
+function pickPhoto(which, useCamera){
+  dropActiveInput();                       // 上一轮若还残留（含用户取消的那次），先清掉
+
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  if (useCamera !== false) input.setAttribute('capture', 'environment');
+  input.style.display = 'none';
+  activeInput = input;
+  document.body.appendChild(input);
+
+  input.addEventListener('change', function(){
+    var f = input.files && input.files[0];
+    // 只删自己：万一用户已经点了下一次拍照，activeInput 已经换成新的了，不能误删
+    if (input.parentNode) input.parentNode.removeChild(input);
+    if (activeInput === input) activeInput = null;
+    if (!f) return;                        // 用户取消：什么都不做，也不弹提示
+    compressPhoto(f).then(function(r){
+      S[KEYMAP[which].state] = { src:r.src, name:f.name || '', ts:f.lastModified || 0, w:r.w, h:r.h };
+      paintShot(which);
+      autoFillFromPhoto(which, r.src);
+      if (Math.min(r.ow, r.oh) < 640){
+        toast('⚠ 这张照片分辨率偏低（' + r.ow + '×' + r.oh + '），屏幕上数字可能看不清，建议重拍');
+      } else {
+        toast(cfg.autoOcr === false ? '照片已拍下，数值请照屏幕填' : '照片已拍下，正在识别读数…');
+      }
+    }).catch(function(){
+      toast('照片读取失败，请重试或从相册选');
+    });
+  });
+  input.click();
+}
+
+/* ===================== 记录 ===================== */
+// 编号用「当天计数器 + 1」，计数器单独存，不靠扫 logs：
+// logs 会被裁到 800 条，一旦当天超过 800 条，扫日志取最大编号就会回绕，
+// 新凭证的 id 撞上旧的，IndexedDB 里那张凭证图直接被覆盖。
+var pendingSeq = null;
+function nextId(d){
+  var day = ymd(d);
+  var n = (seq.day === day && isFinite(seq.n)) ? seq.n : 0;
+  for (var i = 0; i < logs.length; i++){          // 兼容旧数据：日志里有更大的编号就从那儿接着排
+    var id = String(logs[i].id || '');
+    if (id.indexOf(day) !== 0) continue;
+    var m = parseInt(id.slice(day.length + 1), 10);
+    if (isFinite(m) && m > n) n = m;
+  }
+  n++;
+  pendingSeq = { day: day, n: n };                // 先占号，真写进日志才落地，编号不会跳号
+  return day + '-' + ('00' + n).slice(-3);
+}
+function commitSeq(){
+  if (!pendingSeq) return;
+  seq = pendingSeq; pendingSeq = null;
+  store.set(SEQ_KEY, seq);
+}
+
+function buildRecord(){
+  var st = currentState();
+  var d = new Date();
+  return {
+    id: nextId(d),
+    ts: d.getTime(),
+    time: fullTime(d),
+    machine: (cfg.machine || '').trim(),
+    op: (cfg.op || '').trim(),
+    breed: S.breed,
+    stage: S.stage,
+    dec: st.dec,
+    tareD: st.tareD, grossD: st.grossD,
+    tareN: st.tareN, grossN: st.grossN, netN: st.netN, diffN: st.diffN,
+    limitStr: st.limitStr, limitN: st.limitN, pass: st.pass,
+    pTare: S.pTare, pGross: S.pGross,
+    photoCount: (S.pTare ? 1 : 0) + (S.pGross ? 1 : 0)
+  };
+}
+
+// 台账保存：能存多少存多少，不再按固定条数截断。
+// 只有真的容量不足才从最旧的开始丢，并且必须让用户知道丢了。
+function persistLogs(){
+  var arr = logs, dropped = 0, saved = false;
+  while (true){
+    var r = store.setRaw(LOG_KEY, arr);
+    if (r === 'ok'){ logs = arr; saved = true; break; }
+    if (r === 'fail'){ markStorageBroken(); break; }   // 不是容量问题：一条都不删
+    if (arr.length <= 1){ markStorageBroken(); break; }
+    var cut = Math.max(1, Math.floor(arr.length / 10));
+    arr = arr.slice(cut);
+    dropped += cut;
+  }
+  if (dropped) markArchiveTrimmed(dropped, arr.length);
+  return saved;
+}
+
+function persist(rec){
+  var plain = {
+    id: rec.id, ts: rec.ts, time: rec.time, machine: rec.machine, op: rec.op,
+    breed: rec.breed, stage: rec.stage,
+    dec: rec.dec,
+    tareD: rec.tareD, grossD: rec.grossD,
+    tareN: rec.tareN, grossN: rec.grossN, netN: rec.netN, diffN: rec.diffN,
+    limitStr: rec.limitStr, limitN: rec.limitN, pass: rec.pass, photos: rec.photoCount
+  };
+  var last = logs[logs.length - 1];
+  // 判重的四个条件必须全同：机种、阶段、空盒、涂胶后。
+  // 少比机种的话，A33 切 A52 用同样读数会被当成重复 → 少一条记录，且凭证图被覆盖。
+  var dup = !!last &&
+            (last.breed || 'A33') === (plain.breed || 'A33') &&
+            last.stage === plain.stage &&
+            last.tareN === plain.tareN &&
+            last.grossN === plain.grossN &&
+            (plain.ts - last.ts) < 60000;
+  if (!dup){ logs.push(plain); commitSeq(); }
+  // 真重复（同一台秤、同一阶段、同样两个读数）才沿用原编号，凭证图覆盖的是同一张
+  else { rec.id = last.id; pendingSeq = null; }
+  var ok = persistLogs();
+  renderSummary();
+  renderTodayCount();
+  // 这里故意不刷凭证库：那会读一批图片、建一堆 ObjectURL，
+  // 把「发送到群」需要的用户激活时间窗吃掉。凭证图落库后由 saveProof 自己刷。
+  return ok;
+}
+
+/* ===================== 凭证画布 ===================== */
+var CW = 1420, CH = 1840, CP = 48, PW = 640, PH = 1138;
+
+function roundRect(x, x0, y0, w, h, r){
+  x.beginPath();
+  x.moveTo(x0 + r, y0);
+  x.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
+  x.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+  x.arcTo(x0, y0 + h, x0, y0, r);
+  x.arcTo(x0, y0, x0 + w, y0, r);
+  x.closePath();
+}
+
+function loadImg(src){
+  return new Promise(function(res, rej){
+    var im = new Image();
+    im.onload = function(){ res(im); };
+    im.onerror = function(){ rej(new Error('img')); };
+    im.src = src;
+  });
+}
+
+function renderProof(rec){
+  return new Promise(function(resolve){
+    var c = document.createElement('canvas');
+    c.width = CW; c.height = CH;
+    var x = c.getContext('2d');
+    var FAMILY = '"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif';
+    var BRAND = '#0e7a66', INK = '#16181c', GRAY = '#6b7378', LIGHT = '#eef1f3', DANGER = '#c62828';
+
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, CW, CH);
+    x.fillStyle = BRAND; x.fillRect(0, 0, CW, 14);
+    x.textBaseline = 'top';
+    x.textAlign = 'left';
+
+    x.fillStyle = INK; x.font = 'bold 52px ' + FAMILY;
+    x.fillText('涂胶净重记录', CP, 42);
+
+    // 右上：机台 + 日期时间
+    x.textAlign = 'right';
+    if (rec.machine){
+      x.fillStyle = '#3a4247'; x.font = 'bold 30px ' + FAMILY;
+      x.fillText(rec.machine.length > 12 ? rec.machine.slice(0, 12) + '…' : rec.machine, CW - CP, 44);
+    }
+    x.fillStyle = '#8a9299'; x.font = '30px ' + FAMILY;
+    var d = new Date(rec.ts);
+    x.fillText(dateStr(d) + '  ' + clockStr(d), CW - CP, 90);
+    x.textAlign = 'left';
+
+    // 编号 + 机种（主体）+ 阶段
+    var idStr = '编号 ' + rec.id;
+    x.fillStyle = '#8a9299'; x.font = '30px ' + FAMILY;
+    x.fillText(idStr, CP, 112);
+    var idw = x.measureText(idStr).width;
+
+    var breedStr = (rec.breed || 'A33');
+    x.fillStyle = BRAND; x.font = 'bold 42px ' + FAMILY;
+    x.fillText('　' + breedStr, CP + idw, 104);
+    var bwid = x.measureText('　' + breedStr).width;
+    x.fillStyle = '#8a9299'; x.font = '30px ' + FAMILY;
+    x.fillText('  ' + (STAGE_NAME[rec.stage] || '涂布前'), CP + idw + bwid, 112);
+
+    // 净重大字
+    x.fillStyle = GRAY; x.font = '30px ' + FAMILY;
+    x.fillText('胶水净重', CP, 178);
+
+    var D = rec.dec || 2;
+    var netStr = fmtInt(rec.netN, D);
+    x.fillStyle = (rec.pass === false) ? DANGER : BRAND;
+    x.font = 'bold 150px ' + FAMILY;
+    x.fillText(netStr, CP, 208);
+    var nw = x.measureText(netStr).width;
+    x.font = 'bold 56px ' + FAMILY;
+    x.fillStyle = GRAY;
+    x.fillText('g', CP + nw + 16, 296);
+
+    // 判定徽章
+    var label = rec.pass === true ? '合格' : rec.pass === false ? '不合格' : '仅记录';
+    var bg = rec.pass === true ? '#e7f6f1' : rec.pass === false ? '#fdeaea' : '#f0f2f4';
+    var fg = rec.pass === true ? BRAND : rec.pass === false ? DANGER : GRAY;
+    var bw = 240, bh = 86, bx = CW - CP - bw, by = 212;
+    roundRect(x, bx, by, bw, bh, 43);
+    x.fillStyle = bg; x.fill();
+    x.fillStyle = fg; x.font = 'bold 44px ' + FAMILY;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(label, bx + bw / 2, by + bh / 2 + 1);
+    x.textAlign = 'left'; x.textBaseline = 'top';
+
+    // 算式
+    x.fillStyle = '#8a9299'; x.font = '36px ' + FAMILY;
+    x.fillText(rGross(rec) + ' − ' + rTare(rec) + ' = ' + fmtInt(rec.netN, D) + ' g', CP, 380);
+
+    // 四列数据
+    var cols = [
+      ['空盒（皮重）', rTare(rec) + ' g'],
+      ['涂胶后（毛重）', rGross(rec) + ' g'],
+      ['标准（净重 ≥）', (rec.limitStr || specOf(rec.breed, rec.stage)) + ' g'],
+      [rec.pass === false ? '低于下限' : (rec.diffN === 0 ? '刚好达标' : '高于下限'),
+        (rec.diffN === null || rec.diffN === undefined) ? '—' :
+        ((rec.diffN > 0 ? '+' : '') + fmtInt(rec.diffN, D) + ' g')]
+    ];
+    var colW = (CW - CP * 2) / 4;
+    for (var i = 0; i < cols.length; i++){
+      var cx = CP + colW * i;
+      x.fillStyle = '#8a9299'; x.font = '25px ' + FAMILY;
+      x.fillText(cols[i][0], cx, 448);
+      x.fillStyle = INK; x.font = 'bold 40px ' + FAMILY;
+      x.fillText(cols[i][1], cx, 482);
+    }
+
+    x.strokeStyle = LIGHT; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(CP, 556); x.lineTo(CW - CP, 556); x.stroke();
+
+    // 两张照片并排
+    function drawSlot(px, mark, title, photo){
+      x.fillStyle = GRAY; x.font = '28px ' + FAMILY;
+      x.fillText(mark + ' ' + title, px, 578);
+      if (photo){
+        var stamp = shortStamp(photo.ts);
+        if (stamp){
+          x.textAlign = 'right'; x.fillStyle = '#8a9299'; x.font = '25px ' + FAMILY;
+          x.fillText('拍摄 ' + stamp, px + PW, 581);
+          x.textAlign = 'left';
+        }
+      }
+      var iy = 614, ih = PH;
+      if (photo && photo._img){
+        try {
+          var im = photo._img;
+          // 完整显示不裁切：盒子和屏幕都在画面里
+          var s = Math.min(PW / im.width, ih / im.height);
+          var dw = im.width * s, dh = im.height * s;
+          var dx = px + (PW - dw) / 2, dy = iy + (ih - dh) / 2;
+          x.save();
+          roundRect(x, dx, dy, dw, dh, 14); x.clip();
+          x.drawImage(im, dx, dy, dw, dh);
+          x.restore();
+          x.strokeStyle = '#dfe5e7'; x.lineWidth = 2;
+          roundRect(x, dx, dy, dw, dh, 14); x.stroke();
+        } catch(e){}
+      } else {
+        x.fillStyle = '#f7f9fa';
+        roundRect(x, px, iy, PW, PH, 16); x.fill();
+        x.setLineDash([10, 8]);
+        x.strokeStyle = '#d7dee0'; x.lineWidth = 2;
+        roundRect(x, px, iy, PW, PH, 16); x.stroke();
+        x.setLineDash([]);
+        x.fillStyle = '#b8c1c4'; x.font = '30px ' + FAMILY;
+        x.textAlign = 'center';
+        x.fillText('无照片', px + PW / 2, iy + PH / 2 - 16);
+        x.textAlign = 'left';
+      }
+    }
+
+    var loads = [
+      rec.pTare ? loadImg(rec.pTare.src).then(function(im){ rec.pTare._img = im; return true; }).catch(function(){ return false; }) : Promise.resolve(false),
+      rec.pGross ? loadImg(rec.pGross.src).then(function(im){ rec.pGross._img = im; return true; }).catch(function(){ return false; }) : Promise.resolve(false)
+    ];
+
+    Promise.all(loads).then(function(){
+      drawSlot(CP, '①', '空盒读数', rec.pTare);
+      drawSlot(CW - CP - PW, '②', '涂胶后读数', rec.pGross);
+
+      // 页脚
+      var fy = 614 + PH + 20;
+      x.strokeStyle = LIGHT; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(CP, fy); x.lineTo(CW - CP, fy); x.stroke();
+      x.fillStyle = '#8a9299'; x.font = '24px ' + FAMILY;
+      x.fillText('P-shift · 现场拍摄 · 本机生成 · 未联网  ' + rec.time, CP, fy + 16);
+      x.textAlign = 'right';
+      x.fillText(rec.op ? ('操作员 ' + rec.op) : 'P-shift', CW - CP, fy + 16);
+      x.textAlign = 'left';
+
+      resolve(c);
+    }).catch(function(){ resolve(c); });
+  });
+}
+
+/* ===================== 分享 / 保存 ===================== */
+function toBlob(canvas){
+  return new Promise(function(res){
+    if (canvas.toBlob) canvas.toBlob(function(b){ res(b); }, 'image/png');
+    else {
+      var data = canvas.toDataURL('image/png');
+      var bin = atob(data.split(',')[1]);
+      var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      res(new Blob([arr], { type:'image/png' }));
+    }
+  });
+}
+
+function shareText(rec){
+  var st = rec.pass === true ? '，合格' : rec.pass === false ? '，不合格' : '';
+  var mach = rec.machine ? rec.machine + '｜' : '';
+  var D = rec.dec || 2;
+  var head = (rec.breed || 'A33') + ' ' + (STAGE_NAME[rec.stage] || '涂布前');
+  return mach + head + '｜净重 ' + fmtInt(rec.netN, D) + 'g（标准 ≥' + (rec.limitStr || '') + 'g）' + st +
+         '　' + rGross(rec) + ' − ' + rTare(rec) + ' = ' + fmtInt(rec.netN, D) + 'g' +
+         '  ' + clockStr(new Date(rec.ts));
+}
+
+function downloadBlob(blob, name){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+}
+
+var modalBlob = null, modalName = '';
+
+var lastPreviewUrl = null;
+function openPreview(blob, name, tip){
+  modalBlob = blob; modalName = name;
+  if (lastPreviewUrl){ try { URL.revokeObjectURL(lastPreviewUrl); } catch(e){} }
+  lastPreviewUrl = URL.createObjectURL(blob);
+  $('#previewImg').src = lastPreviewUrl;
+  $('#modalTip').textContent = tip || '';
+  $('#modal').classList.add('on');
+}
+
+$('#btnClose').addEventListener('click', function(){ $('#modal').classList.remove('on'); });
+$('#modal').addEventListener('click', function(e){ if (e.target === $('#modal')) $('#modal').classList.remove('on'); });
+$('#btnDownload').addEventListener('click', function(){
+  if (!modalBlob){ toast('没有可保存的图片'); return; }
+  downloadBlob(modalBlob, modalName);
+  toast('已保存：安卓在「下载」里；苹果在「文件」App 里，想进相册请长按图片 →「存储到照片」');
+});
+$('#btnCopy').addEventListener('click', function(){
+  var txt = $('#modalTip').dataset.text || '';
+  if (!txt){ toast('没有可复制的文字'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast('文案已复制'); }, function(){ legacyCopy(txt); });
+  } else legacyCopy(txt);
+});
+function legacyCopy(txt){
+  var ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('文案已复制'); }
+  catch(e){ toast('复制失败，请手动选中'); }
+  ta.remove();
+}
+
+function doReset(){
+  cancelOcr('tare'); cancelOcr('gross');
+  S.tare = ''; S.gross = ''; S.pTare = null; S.pGross = null;
+  $('#tare').value = ''; $('#gross').value = '';
+  clearOcrLine('tare'); clearOcrLine('gross');
+  paintShot('tare'); paintShot('gross');
+  render();
+  $('#tare').focus();
+}
+
+function generate(needPhotos){
+  var st = currentState();
+  if (st.tareN === null){ toast('请先填第①步：空盒读数'); $('#tare').focus(); return null; }
+  if (st.grossN === null){ toast('请再填第②步：涂胶后读数'); $('#gross').focus(); return null; }
+  if (st.grossN <= st.tareN){ toast('涂胶后读数必须大于空盒读数'); return null; }
+  if (needPhotos){
+    if (!S.pTare || !S.pGross){
+      toast('还缺' + (!S.pTare ? '空盒' : '涂胶后') + '读数照片——凭证要照片才算证据');
+      $(!S.pTare ? '#shotTare' : '#shotGross').scrollIntoView({ behavior:'smooth', block:'center' });
+      return null;
+    }
+  }
+  return buildRecord();
+}
+
+/* 存档用的小图（1200px 宽 JPEG，一张约 200KB，能存几百张） */
+function archiveBlob(canvas){
+  var w = 1200, h = Math.round(canvas.height * (1200 / canvas.width));
+  var c2 = document.createElement('canvas');
+  c2.width = w; c2.height = h;
+  c2.getContext('2d').drawImage(canvas, 0, 0, w, h);
+  return new Promise(function(res){
+    if (c2.toBlob) c2.toBlob(function(b){ res(b); }, 'image/jpeg', 0.88);
+    else res(null);
+  });
+}
+
+/* 把凭证存进本机凭证库；返回 Promise<boolean>，失败就是失败，不再假装成功 */
+function saveProof(rec, canvas){
+  return archiveBlob(canvas).then(function(blob){
+    if (!blob) throw new Error('no blob');
+    return dbPut({
+      id: rec.id, ts: rec.ts,
+      breed: rec.breed, stage: rec.stage,
+      netN: rec.netN, dec: rec.dec, limitStr: rec.limitStr, pass: rec.pass,
+      op: rec.op, machine: rec.machine, time: rec.time,
+      text: shareText(rec), blob: blob
+    });
+  }).then(function(){
+    return dbTrim();
+  }).then(function(){
+    return true;
+  }).catch(function(){
+    return false;
+  }).then(function(saved){
+    renderLibrary();
+    return saved;
+  });
+}
+
+// 存库最多等一会儿：万一浏览器卡住，也不能把"发送"这件事一起拖死。
+// 超时返回 'timeout'（不是 false）——它只代表"还不知道"，不能当成"没存上"来吓人。
+function withTimeout(p, ms){
+  return Promise.race([
+    p,
+    new Promise(function(res){ setTimeout(function(){ res('timeout'); }, ms); })
+  ]);
+}
+
+// 按真实结果给提示：记录没进本机 > 凭证图没进库 > 还不知道 > 都成功
+function savedMsg(prefix, logSaved, proofSaved){
+  if (!logSaved) return '⚠ ' + prefix + '，但记录没能存进本机！请立即导出 Excel 留档';
+  if (proofSaved === true) return prefix + '，凭证已存进 App';
+  if (proofSaved === false) return '⚠ ' + prefix + '，但凭证图没存进 App！请把这张图另存到相册';
+  return '⚠ ' + prefix + '，凭证图还在存（本机较慢），稍后请到「凭证库」确认';
+}
+
+var busy = false;
+function setBusy(v){
+  busy = v;
+  ['#btnShare', '#btnSaveOnly'].forEach(function(sel){
+    var b = document.querySelector(sel);
+    if (b) b.disabled = v;
+  });
+}
+function runShare(){
+  if (busy) return;
+  var rec = generate(true);
+  if (!rec) return;
+  setBusy(true);
+  var logSaved = false;
+  try { logSaved = persist(rec) !== false; } catch(e){ setBusy(false); toast('记录失败，请重试'); return; }
+  renderProof(rec).then(function(canvas){
+    // 落库和出图并行跑：navigator.share 必须在用户激活的时间窗内调用，
+    // 前面多串一次 IndexedDB 写入 + 刷列表，慢机型上就会超时被浏览器拒掉，
+    // 结果「发送到群」永远只能退化成"长按保存"。落库结果等分享完再看。
+    var saveP = saveProof(rec, canvas);
+    return toBlob(canvas).then(function(blob){ return { blob:blob, saveP:saveP }; });
+  }).then(function(r){
+    var name = 'P-shift_' + rec.id + '.png';
+    var text = shareText(rec);
+    var file = null;
+    try { file = new File([r.blob], name, { type:'image/png' }); } catch(e){ file = null; }
+    // canShare 在部分浏览器（老 Safari）会直接抛错，必须兜住，否则会误报"生成失败"
+    var canShare = false;
+    try {
+      canShare = !!(file && navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share);
+    } catch(e){ canShare = false; }
+    // 分享面板可能开很久，超时计时要在分享结束后才开始，否则会误报"还在存"
+    var waitSaved = function(){ return withTimeout(r.saveP, 6000); };
+
+    if (!canShare){
+      return waitSaved().then(function(s){
+        showFallback(r.blob, name, text, s, logSaved);
+        doReset();
+      });
+    }
+    return navigator.share({ files:[file], text:text }).then(function(){
+      return waitSaved().then(function(s){ toast(savedMsg('已发送', logSaved, s)); doReset(); });
+    }, function(err){
+      if (err && err.name === 'AbortError'){
+        return waitSaved().then(function(s){ toast(savedMsg('已取消', logSaved, s)); });
+      }
+      return waitSaved().then(function(s){ showFallback(r.blob, name, text, s, logSaved); doReset(); });
+    });
+  }).catch(function(){
+    toast('生成凭证失败，请重试');
+  }).then(function(){
+    setBusy(false);
+  });
+}
+
+function showFallback(blob, name, text, proofSaved, logSaved){
+  var tip;
+  if (!logSaved){
+    tip = '⚠ 记录没能存进本机！这张图请务必保存，并尽快导出 Excel 留档。';
+  } else if (proofSaved === false){
+    tip = '⚠ 凭证图没能存进 App（浏览器限制或空间不足）。请务必点「保存图片」留一份。';
+  } else if (proofSaved !== true){
+    tip = '⚠ 凭证图还在存（本机较慢），稍后请到「凭证库」确认。这张图请先点「保存图片」留一份。';
+  } else {
+    tip = '长按上面的图片 → 保存到相册 → 在微信群发送。或点「保存图片」。';
+  }
+  openPreview(blob, name, tip);
+  $('#modalTip').dataset.text = text;
+  downloadBlob(blob, name);
+}
+
+$('#btnShare').addEventListener('click', runShare);
+
+$('#btnSaveOnly').addEventListener('click', function(){
+  if (busy) return;                 // 和「发送」一样防连点：处理中再点直接忽略
+  var rec = generate(false);
+  if (!rec) return;
+  setBusy(true);
+  var logSaved = false;
+  try { logSaved = persist(rec) !== false; } catch(e){ setBusy(false); toast('记录失败，请重试'); return; }
+  renderProof(rec).then(function(canvas){
+    return withTimeout(saveProof(rec, canvas), 8000);   // 这条路不赶时间窗，多等等再下结论
+  }).then(function(saved){
+    toast(savedMsg('已记录', logSaved, saved));
+    doReset();
+  }).catch(function(){
+    toast(savedMsg('已记录', logSaved, false));
+    doReset();
+  }).then(function(){
+    setBusy(false);
+  });
+});
+
+/* ===================== 输入与设置 ===================== */
+function bindInput(sel, key){
+  var el = $(sel);
+  el.value = S[key] || '';
+  el.addEventListener('input', function(){
+    var v = el.value.replace(/[^0-9.]/g, '');
+    var p = v.indexOf('.');
+    if (p >= 0){
+      // 只保留一个小数点，最多 4 位小数（GH-200 是 4 位）
+      var ip = v.slice(0, p);
+      var fp = v.slice(p + 1).replace(/\./g, '').slice(0, 4);
+      v = ip + '.' + fp;
+    }
+    if (v.length > 10) v = v.slice(0, 10);
+    el.value = v;
+    S[key] = v;
+    cancelOcr(key);
+    clearOcrLine(key);
+    render();
+  });
+  el.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === 'Go'){
+      e.preventDefault();
+      if (key === 'tare') $('#gross').focus();
+      else el.blur();
+    }
+  });
+  el.addEventListener('blur', function(){
+    // 不补零、不改小数位：保留天平原样的 4 位读数
+    S[key] = el.value;
+    render();
+  });
+  el.addEventListener('focus', function(){ setTimeout(function(){ el.select && el.select(); }, 30); });
+}
+bindInput('#tare', 'tare');
+bindInput('#gross', 'gross');
+
+$('#btnReuse').addEventListener('click', function(){
+  var last = logs[logs.length - 1];
+  if (!last){ toast('还没有记录'); return; }
+  cancelOcr('tare');
+  S.tare = rTare(last);
+  $('#tare').value = S.tare;
+  render();
+  clearOcrLine('tare');
+  toast('已填入上次空盒 ' + S.tare + ' g');
+  $('#gross').focus();
+});
+
+/* ===================== 照片大图（读数看不清时核对） ===================== */
+var lbWhich = null, lbScale = 1, lbX = 0, lbY = 0;
+var lbDrag = false, lbMoved = false, lbSX = 0, lbSY = 0, lbTX = 0, lbTY = 0;
+
+function lbApply(){
+  var img = $('#lbImg');
+  img.style.transform = 'translate(' + lbX + 'px,' + lbY + 'px) scale(' + lbScale + ')';
+}
+function lbReset(){ lbScale = 1; lbX = 0; lbY = 0; lbApply(); }
+
+function openPhotoView(which){
+  var p = S[KEYMAP[which].state];
+  if (!p) return;
+  lbWhich = which;
+  lbReset();
+  $('#lbImg').src = p.src;
+  $('#lightbox').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closePhotoView(){
+  $('#lightbox').classList.remove('on');
+  document.body.style.overflow = '';
+  lbReset();
+  $('#lbImg').removeAttribute('src');
+  lbWhich = null;
+}
+
+(function(){
+  var stage = $('#lbStage'), img = $('#lbImg');
+  if (!stage || !img) return;
+
+  // 点图片：放大 ⇄ 还原
+  img.addEventListener('click', function(){
+    if (lbMoved){ lbMoved = false; return; }      // 拖动结束的那一下不算点击
+    if (lbScale > 1){ lbReset(); return; }
+    lbScale = 2.6; lbX = 0; lbY = 0; lbApply();
+  });
+
+  // 放大后可以拖着看
+  stage.addEventListener('pointerdown', function(e){
+    if (lbScale <= 1) return;
+    lbDrag = true; lbMoved = false;
+    lbSX = e.clientX; lbSY = e.clientY; lbTX = lbX; lbTY = lbY;
+    if (stage.setPointerCapture) { try { stage.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  stage.addEventListener('pointermove', function(e){
+    if (!lbDrag) return;
+    var dx = e.clientX - lbSX, dy = e.clientY - lbSY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) lbMoved = true;
+    lbX = lbTX + dx; lbY = lbTY + dy;
+    lbApply();
+  });
+  stage.addEventListener('pointerup', function(){ lbDrag = false; });
+  stage.addEventListener('pointercancel', function(){ lbDrag = false; });
+
+  // 点黑边关闭
+  stage.addEventListener('click', function(e){
+    if (e.target === img) return;
+    if (lbMoved){ lbMoved = false; return; }
+    closePhotoView();
+  });
+
+  $('#lbClose').addEventListener('click', closePhotoView);
+  $('#lbRetake').addEventListener('click', function(){
+    var which = lbWhich;
+    closePhotoView();
+    if (which) pickPhoto(which, true);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && $('#lightbox').classList.contains('on')) closePhotoView();
+  });
+})();
+
+// 拍照位交互：有照片 → 看大图；没照片 → 直接拍
+function shotTap(which){
+  if (S[KEYMAP[which].state]) openPhotoView(which);
+  else pickPhoto(which, true);
+}
+$('#shotTare').addEventListener('click', function(e){ e.stopPropagation(); shotTap('tare'); });
+$('#shotGross').addEventListener('click', function(e){ e.stopPropagation(); shotTap('gross'); });
+$('#retakeTare').addEventListener('click', function(e){ e.stopPropagation(); pickPhoto('tare', true); });
+$('#retakeGross').addEventListener('click', function(e){ e.stopPropagation(); pickPhoto('gross', true); });
+$('#galTare').addEventListener('click', function(e){ e.stopPropagation(); pickPhoto('tare', false); });
+$('#galGross').addEventListener('click', function(e){ e.stopPropagation(); pickPhoto('gross', false); });
+
+// .shot 是 role=button 的 div，键盘/读屏用户按 Enter、空格得自己接管
+// （e.target !== this 时跳过，否则焦点在里面的「重拍」按钮上会同时触发两次拍照）
+[['#shotTare','tare'], ['#shotGross','gross']].forEach(function(pair){
+  $(pair[0]).addEventListener('keydown', function(e){
+    if (e.target !== this) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+      e.preventDefault();
+      shotTap(pair[1]);
+    }
+  });
+});
+
+// 机种 / 阶段 选择
+[['#segBreed', 'breed'], ['#segStage', 'stage']].forEach(function(pair){
+  var btns = document.querySelectorAll(pair[0] + ' button');
+  for (var i = 0; i < btns.length; i++){
+    btns[i].addEventListener('click', function(){
+      S[pair[1]] = this.getAttribute('data-v');
+      // 机种和阶段都记住：固定做「涂完最后一件」的工位不用每次重选，也就不会用错标准
+      cfg[pair[1]] = S[pair[1]];
+      store.set(CFG_KEY, cfg);
+      render();
+      toast(pair[1] === 'breed' ? ('机种 ' + S.breed + '，标准 ≥' + specOf(S.breed, S.stage)) :
+                                  ('阶段：' + STAGE_NAME[S.stage] + '，标准 ≥' + specOf(S.breed, S.stage)));
+    });
+  }
+});
+
+// 设置项
+var cfgFields = [['#cfgMachine','machine'], ['#cfgOp','op']];
+var autoOcrEl = $('#cfgAutoOcr');
+if (autoOcrEl){
+  autoOcrEl.checked = cfg.autoOcr !== false;
+  autoOcrEl.addEventListener('change', function(){
+    cfg.autoOcr = autoOcrEl.checked;
+    store.set(CFG_KEY, cfg);
+    if (!cfg.autoOcr) clearOcrLine('tare'), clearOcrLine('gross');
+    toast(cfg.autoOcr ? '已开启：拍照后自动识别读数' : '已关闭自动识别，请手动填数');
+  });
+}
+cfgFields.forEach(function(pair){
+  var el = $(pair[0]);
+  el.value = cfg[pair[1]] === null || cfg[pair[1]] === undefined ? '' : cfg[pair[1]];
+  el.addEventListener('input', function(){
+    cfg[pair[1]] = el.value;
+    store.set(CFG_KEY, cfg);
+  });
+});
+
+/* ===================== 今日汇总（下班抄表用） ===================== */
+function todayRecords(){
+  var day = ymd(new Date());
+  return logs.filter(function(r){ return String(r.id).indexOf(day) === 0; })
+             .sort(function(a, b){ return (a.ts || 0) - (b.ts || 0); });
+}
+
+// 一行就是 A-B=C：涂胶后 − 空盒 = 净重
+function sumLine(r){
+  var D = r.dec || 2;
+  return rGross(r) + '-' + rTare(r) + '=' + fmtInt(r.netN, D);
+}
+
+function renderSummary(){
+  var list = todayRecords();
+  var cnt = $('#sumCount');
+  if (cnt) cnt.textContent = list.length + ' 条';
+  var box = $('#sumList');
+  if (!box) return;
+  if (!list.length){
+    box.innerHTML = '<div class="empty">今天还没有记录</div>';
+    return;
+  }
+  var html = '';
+  ['A33', 'A52'].forEach(function(b){
+    var arr = list.filter(function(r){ return ((r.breed === 'A52') ? 'A52' : 'A33') === b; });
+    if (!arr.length) return;
+    html += '<div class="sumgroup">' + b + '（' + arr.length + ' 条）</div>';
+    arr.forEach(function(r){
+      var vd = r.pass === true ? '<span class="vd">合格</span>' :
+               r.pass === false ? '<span class="vd f">不合格</span>' : '';
+      html += '<div class="sumrow">' +
+        '<span class="stg">' + (STAGE_NAME[r.stage] || '') + '</span>' +
+        '<span class="eq">' + sumLine(r) + '<i>' + String(r.time || '').slice(11, 16) + '</i></span>' +
+        vd + '</div>';
+    });
+  });
+  box.innerHTML = html;
+}
+
+function summaryText(){
+  var list = todayRecords();
+  if (!list.length) return '';
+  var d = new Date();
+  var lines = [d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' 周' + WEEK[d.getDay()]];
+  ['A33', 'A52'].forEach(function(b){
+    list.filter(function(r){ return ((r.breed === 'A52') ? 'A52' : 'A33') === b; })
+        .forEach(function(r){
+          lines.push(b + ' ' + (STAGE_NAME[r.stage] || '') + ' ' + sumLine(r) +
+                     (r.pass === false ? ' 不合格' : ''));
+        });
+  });
+  return lines.join('\n');
+}
+
+$('#btnCopySum').addEventListener('click', function(){
+  var txt = summaryText();
+  if (!txt){ toast('今天还没有记录'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast('已复制，粘到电子表里就行'); },
+      function(){ legacyCopy(txt); });
+  } else legacyCopy(txt);
+});
+$('#btnCsv2').addEventListener('click', function(){ $('#btnCsv').click(); });
+
+/* ===================== 凭证库 ===================== */
+function todayLogs(){
+  var day = ymd(new Date());
+  return logs.filter(function(r){ return String(r.id).indexOf(day) === 0; });
+}
+
+var libList = [], libUrls = [], libTotal = 0, libPage = 1, LIB_PAGE = 20;
+
+// 只更新顶部的「今日 N 次」：记录一落盘就要看到，不能等凭证库那趟异步读完
+function renderTodayCount(){
+  var el = $('#todayCount');
+  if (el) el.textContent = '今日 ' + todayLogs().length + ' 次';
+  var ls = $('#ledgerStat');
+  if (ls) ls.textContent = logs.length ? ('台账 ' + logs.length + ' 条 · Excel 导出包含全部台账') : '';
+}
+
+function renderLibrary(){
+  var box = $('#histList');
+  if (!box) return;
+  renderTodayCount();
+
+  // 只取 id+ts（不读图片），按需分页取当前要显示的那几张，避免一次把几十 MB 读进内存
+  dbKeys().then(function(keys){
+    if (keys === null){                       // 凭证库不可用 ≠ 凭证库是空的，别让人误以为没事
+      libUrls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} });
+      libUrls = []; libList = []; libTotal = 0;
+      $('#histCount').textContent = '0 张';
+      $('#libStat').textContent = '';
+      box.innerHTML = '<div class="empty">这个浏览器不支持本地凭证库，请用手机自带浏览器（Chrome / Safari）打开</div>';
+      return;
+    }
+    libTotal = keys.length;
+    if (libPage * LIB_PAGE >= libTotal && libTotal > 0) libPage = Math.max(1, Math.ceil(libTotal / LIB_PAGE));
+    var show = Math.min(libTotal, libPage * LIB_PAGE);
+
+    $('#histCount').textContent = libTotal + ' 张';
+    $('#libStat').textContent = libTotal
+      ? ('共 ' + libTotal + ' 张' + (show < libTotal ? ' · 已显示最近 ' + show + ' 张' : ''))
+      : '';
+    if (!libTotal){
+      libUrls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} });
+      libUrls = []; libList = [];
+      box.innerHTML = '<div class="empty">还没有凭证。称完一次会自动存进来，随时能翻出来。</div>';
+      return;
+    }
+
+    var ids = keys.slice(0, show).map(function(k){ return k.id; });
+    return dbGetMany(ids).then(function(items){
+      items = items.filter(Boolean);
+      if (!items.length){
+        libList = [];
+        box.innerHTML = '<div class="empty">凭证图读取失败，请重试；数值可用「导出 Excel」核对</div>';
+        return;
+      }
+      libList = items;
+      libUrls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} });
+      libUrls = [];
+      var html = '';
+      for (var i = 0; i < items.length; i++){
+        var it = items[i];
+        // 早期版本或写入失败可能留下"没有 blob"的记录：这里必须兜住，
+        // 否则 createObjectURL(undefined) 抛错，会被外层 catch 误报成"浏览器不支持"
+        var url = '';
+        if (it.blob && typeof it.blob === 'object'){
+          try { url = URL.createObjectURL(it.blob); libUrls.push(url); } catch(e){ url = ''; }
+        }
+        var D = it.dec || 2;
+        var verdict = it.pass === true ? '<span class="st">合格</span>' :
+                      it.pass === false ? '<span class="st f">不合格</span>' : '';
+        var tag = (it.breed || 'A33') + (it.stage === 'post' ? ' 涂完' : ' 涂布前');
+        var when = String(it.time || '').slice(5, 16);
+        html += '<div class="pitem" data-i="' + i + '">' +
+          (url ? '<img src="' + url + '" alt="凭证" loading="lazy">'
+               : '<div class="pthumb-bad">无图</div>') +
+          '<div class="pmeta">' +
+            '<b>' + fmtInt(it.netN, D) + ' g' + (it.pass === false ? '　低于 ≥' + (it.limitStr || '') : '') + '</b>' +
+            '<span>' + when + ' · ' + tag + (url ? '' : ' · 图片缺失') + '</span>' +
+          '</div>' + verdict + '</div>';
+      }
+      if (show < libTotal){
+        html += '<button class="btn ghost mini" id="btnMore" type="button" style="width:100%;margin-top:8px">' +
+                '再加载 ' + LIB_PAGE + ' 张（共 ' + libTotal + ' 张）</button>';
+      }
+      box.innerHTML = html;
+      var more = document.getElementById('btnMore');
+      if (more) more.addEventListener('click', function(){ libPage++; renderLibrary(); });
+    });
+  }).catch(function(){
+    box.innerHTML = '<div class="empty">凭证库读取出错，请重开本页再试；数值可用「导出 Excel」核对</div>';
+  });
+}
+
+// 点一条 → 看原图，可再保存/再复制文案
+$('#histList').addEventListener('click', function(e){
+  var row = e.target && e.target.closest ? e.target.closest('.pitem') : null;
+  if (!row) return;
+  var it = libList[+row.getAttribute('data-i')];
+  if (!it) return;
+  if (!it.blob){
+    toast('这条凭证的图片丢失了（只剩数值），请用「导出 Excel」核对');
+    return;
+  }
+  try {
+    openPreview(it.blob, 'P-shift_' + it.id + '.jpg', '这张凭证已存在 App 里，可点「保存图片」再存一份到相册。');
+    $('#modalTip').dataset.text = it.text || '';
+  } catch(err){
+    toast('这张图打不开，请尝试「导出 Excel」核对数值');
+  }
+});
+
+// CSV 字段转义（RFC 4180）：含逗号、引号、换行的字段加引号，字段内引号双写
+// 机台/操作员是自由输入，出现「涂布1号，夜班」这种带逗号的名字时，不转义会整行错位
+function csvCell(v){
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+// 自由文本列还要防「CSV 注入」：Excel/WPS 会把 = + - @ 开头的内容当公式执行。
+// 通行做法是前面加一个单引号——Excel 打开时按文本显示，不会计算、也不会显示这个引号。
+// 只对文本列做：数值列（尤其「高于下限」可能是 -0.0005）必须保持纯数字，不能加前缀。
+function csvText(v){
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return csvCell(s);
+}
+
+$('#btnCsv').addEventListener('click', function(){
+  if (!logs.length){ toast('还没有记录'); return; }
+  var head = ['记录编号','日期时间','机种','阶段','机台','操作员','空盒(g)','涂胶后(g)','净重(g)','标准下限(g)','高于下限(g)','判定','照片数'];
+  var lines = [head.map(csvCell).join(',')];
+  logs.forEach(function(r){
+    var D = r.dec || 2;
+    var marg = (r.diffN === null || r.diffN === undefined) ? '' : fmtInt(r.diffN, D);
+    var judge = r.pass === true ? '合格' : r.pass === false ? '不合格' : '';
+    lines.push([
+      csvText(r.id), csvText(r.time), csvText(r.breed || ''), csvText(STAGE_NAME[r.stage] || ''),
+      csvText(r.machine || ''), csvText(r.op || ''),
+      csvCell(rTare(r)), csvCell(rGross(r)), csvCell(fmtInt(r.netN, D)),
+      csvCell(r.limitStr || ''), csvCell(marg), csvText(judge), csvCell(r.photos || 0)
+    ].join(','));
+  });
+  var csv = '\ufeff' + lines.join('\r\n');
+  downloadBlob(new Blob([csv], { type:'text/csv;charset=utf-8' }), 'P-shift_胶水称重_' + ymd(new Date()) + '.csv');
+  toast('已导出，可用 Excel/WPS 打开');
+});
+
+$('#btnClear').addEventListener('click', function(){
+  if (!logs.length){ toast('本来就没有记录'); return; }
+  if (!confirm('确定清空全部凭证和记录？此操作不能撤销，建议先导出 Excel。')) return;
+  logs = []; store.set(LOG_KEY, logs);
+  seq = { day:'', n:0 }; pendingSeq = null; store.set(SEQ_KEY, seq);
+  dbClear().then(function(ok){
+    renderSummary();
+    renderLibrary();
+    // 台账清了、图没清会出现"库里有图但列表没记录"的对不上，必须说出来
+    toast(ok ? '已清空' : '⚠ 记录已清，但凭证图没删掉，请再点一次「清空凭证」');
+  });
+});
+
+/* ===================== 离线缓存 =====================
+   放在 https 网站上时生效：第一次联网打开后，没网也能打开。
+   直接用手机打开本地文件（file://）时浏览器不支持，自动跳过，不影响使用。 */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+
+/* ===================== 启动 ===================== */
+function tick(){ $('#clock').textContent = clockStr(new Date()); }
+setInterval(tick, 15000); tick();
+S.breed = SPEC[cfg.breed] ? cfg.breed : 'A33';
+S.stage = (SPEC[S.breed] && SPEC[S.breed][cfg.stage]) ? cfg.stage : 'pre';   // 记住上次的阶段，别每次开机都回到「涂布前」用错标准
+
+// 启动就探一下本机存储能不能写（无痕模式 / 空间满会直接抛错）
+(function(){
+  try {
+    localStorage.setItem('__pshift_probe__', '1');
+    localStorage.removeItem('__pshift_probe__');
+  } catch(e){ markStorageBroken(); }
+})();
+renderSummary();
+renderLibrary();
+render();
+paintShot('tare'); paintShot('gross');
+
+/* 计算自检：万一算法被改坏，宁可不让用，也不能让人背锅 */
+(function(){
+  var cases = [['6.5604','6.5259','0.0345'], ['15.67','12.34','3.33'],
+               ['100.0000','99.9999','0.0001'], ['6.560','6.52','0.040'], ['220.0000','0.0000','220.0000']];
+  var ok = true;
+  try {
+    for (var i = 0; i < cases.length; i++){
+      var t = parseDec(cases[i][1]), g = parseDec(cases[i][0]);
+      var d = Math.max(t.d, g.d);
+      var n = scaleDec(g, d) - scaleDec(t, d);
+      if (fmtInt(n, d) !== cases[i][2]){ ok = false; break; }
+    }
+  } catch(e){ ok = false; }
+  if (!ok){
+    var el = $('#secNote');
+    if (el) el.innerHTML = '<b style="color:#c62828">⚠ 计算自检未通过：请勿使用本页记录，改用原来的流程并告知维护者。</b>';
+  }
+})();
+
+// 演示：?demo=1 预填数据；?demo=1&proof=1 直接弹出凭证；&breed=A52 / &stage=post 可试其他组合
+(function(){
+  var q = location.search;
+  if (q.indexOf('demo=1') < 0) return;
+  if (q.indexOf('breed=A52') >= 0) S.breed = 'A52';
+  if (q.indexOf('stage=post') >= 0) S.stage = 'post';
+  S.tare = '6.5259'; S.gross = '6.5604';
+  $('#tare').value = '6.5259'; $('#gross').value = '6.5604';
+  if (!cfg.machine) cfg.machine = '涂布1号';
+  if (!cfg.op) cfg.op = '张三';
+  $('#cfgMachine').value = cfg.machine;
+  $('#cfgOp').value = cfg.op;
+  render();
+  if (q.indexOf('proof=1') >= 0){
+    setTimeout(function(){
+      var rec = buildRecord();
+      renderProof(rec).then(toBlob).then(function(b){
+        openPreview(b, 'demo.png', shareText(rec));
+        $('#modalTip').dataset.text = shareText(rec);
+      });
+    }, 60);
+  }
+})();
+
+})();
+</script>
+</body>
+</html>
