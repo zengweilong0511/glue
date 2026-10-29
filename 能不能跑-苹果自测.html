@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>能不能跑 测试</title>
+<style>
+  body{margin:0;padding:22px;font-family:-apple-system,"PingFang SC",sans-serif;background:#0e1112;color:#e9eff1}
+  h1{font-size:20px;margin:0 0 14px}
+  .box{background:#182022;border-radius:14px;padding:16px;margin-bottom:12px}
+  .k{font-size:13px;color:#8b9a9f;margin-bottom:4px}
+  .v{font-size:19px;font-weight:800;word-break:break-all}
+  .ok{color:#31c48d}.bad{color:#f05252}
+  button{width:100%;padding:16px;font-size:17px;font-weight:800;border:0;border-radius:14px;
+         background:#0e7a66;color:#fff;margin-top:6px}
+  p{font-size:13px;line-height:1.7;color:#9aa8ad}
+</style>
+</head>
+<body>
+<h1>能不能跑？</h1>
+
+<div class="box">
+  <div class="k">页面本身</div>
+  <div class="v ok">打开了 ✓ 说明浏览器能渲染网页</div>
+</div>
+
+<div class="box">
+  <div class="k">本地存储 localStorage</div>
+  <div class="v" id="ls">检测中…</div>
+</div>
+
+<div class="box">
+  <div class="k">本地数据库 IndexedDB（存凭证图用）</div>
+  <div class="v" id="idb">检测中…</div>
+</div>
+
+<button id="btn">点一下：存一个数再读回来</button>
+
+<p id="tip" style="margin-top:14px"></p>
+
+<script>
+(function(){
+  var out = document.getElementById('tip');
+  function set(id, text, good){
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'v ' + (good ? 'ok' : 'bad');
+  }
+
+  // 1. localStorage
+  try {
+    localStorage.setItem('t_probe', '123');
+    var v = localStorage.getItem('t_probe');
+    set('ls', v === '123' ? '可读写 ✓' : '读回来不对 ✗', v === '123');
+  } catch(e){
+    set('ls', '不可用 ✗（' + (e && e.name ? e.name : '错误') + '）', false);
+  }
+
+  // 2. IndexedDB
+  try {
+    var req = indexedDB.open('t_probe_db', 1);
+    req.onupgradeneeded = function(){
+      if (!req.result.objectStoreNames.contains('s')) req.result.createObjectStore('s');
+    };
+    req.onsuccess = function(){ set('idb', '可打开 ✓', true); };
+    req.onerror = function(){ set('idb', '打不开 ✗', false); };
+    req.onblocked = function(){ set('idb', '被阻塞 ✗', false); };
+  } catch(e){
+    set('idb', '不支持 ✗', false);
+  }
+
+  // 3. 写入并读回
+  document.getElementById('btn').addEventListener('click', function(){
+    var n = Date.now();
+    try {
+      localStorage.setItem('t_click', String(n));
+      var back = localStorage.getItem('t_click');
+      if (back === String(n)){
+        out.innerHTML = '<b style="color:#31c48d">成功 ✓</b><br>刚存的时间戳能原样读回来，说明这个浏览器可以当存储用。<br><br>' +
+          '下一步：关掉这个页面，<b>再重新打开一次</b>，看下面这行数字还在不在——<br>' +
+          '<span style="color:#e9eff1;font-size:16px" id="persist">重新打开后这里应显示：' + n + '</span>';
+      } else {
+        out.innerHTML = '<b style="color:#f05252">失败 ✗</b> 存进去读回来不一致';
+      }
+    } catch(e){
+      out.innerHTML = '<b style="color:#f05252">失败 ✗</b> ' + (e && e.message ? e.message : '写入被拒绝');
+    }
+  });
+
+  // 重新打开时显示上次存的
+  try {
+    var last = localStorage.getItem('t_click');
+    if (last){
+      out.innerHTML = '上次点按钮存下的数字还在：<b>' + last + '</b> —— 说明<b style="color:#31c48d">重新打开后数据仍然保留 ✓</b>';
+    }
+  } catch(e){}
+})();
+</script>
+</body>
+</html>
